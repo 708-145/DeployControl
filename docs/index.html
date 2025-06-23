@@ -137,8 +137,8 @@
         <section id="credentials-config">
             <h2>Host Credentials & API Endpoint</h2>
             <div>
-                <label for="credentials-file-input">Load Credentials File (.sh, .env, .txt):</label>
-                <input type="file" id="credentials-file-input" accept=".sh,.env,.txt">
+                <label for="credentials-file-input">Load Credentials File:</label>
+                <input type="file" id="credentials-file-input"> {/* Removed accept attribute */}
                 <button id="load-credentials-button">Load Credentials File</button>
             </div>
             <div>
@@ -156,10 +156,6 @@
                 <label for="deploy-config-file">Configuration File (JSON):</label>
                 <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
             </div>
-            <div>
-                <label for="deploy-instance-id">Instance ID (optional):</label>
-                <input type="text" id="deploy-instance-id" name="deploy-instance-id">
-            </div>
             <button id="deploy-button">Deploy Instance</button>
         </section>
 
@@ -167,10 +163,6 @@
 
         <section id="export-config">
             <h2>Export Instance Configuration</h2>
-            <div>
-                <label for="export-instance-id">Instance ID:</label>
-                <input type="text" id="export-instance-id" name="export-instance-id" required>
-            </div>
             <button id="export-config-button">Export Configuration</button>
         </section>
 
@@ -178,10 +170,6 @@
 
         <section id="update-config">
             <h2>Update Instance Configuration</h2>
-            <div>
-                <label for="update-config-instance-id">Instance ID:</label>
-                <input type="text" id="update-config-instance-id" name="update-config-instance-id" required>
-            </div>
             <div>
                 <label for="update-config-file">New Configuration File (JSON):</label>
                 <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
@@ -193,10 +181,6 @@
 
         <section id="update-instance">
             <h2>Update (Upgrade) Instance</h2>
-            <div>
-                <label for="update-instance-id">Instance ID:</label>
-                <input type="text" id="update-instance-id" name="update-instance-id" required>
-            </div>
             <!-- Future: Add options for version, etc. if needed -->
             <button id="update-instance-button">Update Instance</button>
         </section>
@@ -229,17 +213,17 @@
             // Action elements
             const deployButton = document.getElementById('deploy-button');
             const deployConfigFileInput = document.getElementById('deploy-config-file');
-            const deployInstanceIdInput = document.getElementById('deploy-instance-id');
+            // const deployInstanceIdInput = document.getElementById('deploy-instance-id'); // Removed
 
             const exportConfigButton = document.getElementById('export-config-button');
-            const exportInstanceIdInput = document.getElementById('export-instance-id');
+            // const exportInstanceIdInput = document.getElementById('export-instance-id'); // Removed
 
             const updateConfigButton = document.getElementById('update-config-button');
-            const updateConfigInstanceIdInput = document.getElementById('update-config-instance-id');
+            // const updateConfigInstanceIdInput = document.getElementById('update-config-instance-id'); // Removed
             const updateConfigFileInput = document.getElementById('update-config-file');
 
             const updateInstanceButton = document.getElementById('update-instance-button');
-            const updateInstanceIdInput = document.getElementById('update-instance-id');
+            // const updateInstanceIdInput = document.getElementById('update-instance-id'); // Removed
 
             const SSC_STORAGE_KEY = 'sscPersistentData'; // General key for all SSC related data
 
@@ -431,35 +415,33 @@
             }
 
             async function deployInstance() {
-                logMessage('Attempting to deploy instance...');
+                logMessage('Attempting to deploy instance configuration...');
+                if (!deployConfigFileInput.files || deployConfigFileInput.files.length === 0) {
+                    logError('Please select a configuration file to deploy.');
+                    return;
+                }
                 try {
-                    // This is a placeholder. Actual deploy would need an instance config file AND an image file.
-                    // const sscData = loadCredentialsFromStorage(); // makeApiCall does this
-                    // if (!sscData || !sscData.apiBaseUrl) {
-                    //     logError('Credentials or API Base URL not configured. Please load a credentials file.');
-                    //     return;
-                    // }
-                    // For now, just showing how makeApiCall might be invoked.
-                    // await makeApiCall('/instances', 'POST', { someDeployConfig: 'data' });
-                    logMessage('Deploy Instance: Full implementation pending image file selector and specific deploy config structure.');
-                    logSuccess('Simulated Deploy: API call structure is ready.');
+                    const configFileContent = await readFileContent(deployConfigFileInput);
+                    // Assuming POST to /config with the new configuration content
+                    await makeApiCall('/config', 'POST', configFileContent);
+                    logSuccess('Instance configuration deployed successfully.');
                 } catch (error) {
-                    logError(`Deploy instance failed: ${error.message}`);
+                    logError(`Deploy instance configuration failed: ${error.message}`);
                 }
             }
 
             async function exportConfig() {
-                logMessage('Attempting to export configuration...');
-                const instanceId = exportInstanceIdInput.value.trim();
-                if (!instanceId) {
-                    logError('Instance ID is required for export.');
-                    return;
-                }
+                logMessage('Attempting to export instance configuration...');
                 try {
-                    // Example: GET /ssc/api/instances/{instanceId}/config
-                    const configData = await makeApiCall(`/instances/${instanceId}/config`, 'GET');
+                    // Assuming GET from /config returns the current instance's configuration
+                    const configData = await makeApiCall('/config', 'GET');
 
-                    const filename = `config-${instanceId}.json`;
+                    let filename = "config.json"; // Default filename
+                    const sscData = JSON.parse(localStorage.getItem(SSC_STORAGE_KEY));
+                    if (sscData && sscData.credentials && sscData.credentials.ip) {
+                        filename = `config-${sscData.credentials.ip.replace(/\./g, '_')}.json`;
+                    }
+
                     const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
 
                     const link = document.createElement('a');
@@ -469,21 +451,15 @@
                     link.click();
                     document.body.removeChild(link);
                     URL.revokeObjectURL(link.href);
-                    logSuccess(`Configuration for instance '${instanceId}' downloaded as ${filename}.`);
+                    logSuccess(`Instance configuration downloaded as ${filename}.`);
 
                 } catch (error) {
-                    // makeApiCall already logs errors, but we can add more context here if needed
-                    logError(`Export configuration failed for instance '${instanceId}'. ${error.message}`);
+                    logError(`Export instance configuration failed. ${error.message}`);
                 }
             }
 
             async function updateConfig() {
-                logMessage('Attempting to update configuration...');
-                const instanceId = updateConfigInstanceIdInput.value.trim();
-                if (!instanceId) {
-                    logError('Instance ID is required for updating configuration.');
-                    return;
-                }
+                logMessage('Attempting to update instance configuration...');
                 if (!updateConfigFileInput.files || updateConfigFileInput.files.length === 0) {
                     logError('Please select a new configuration file for update.');
                     return;
@@ -491,29 +467,22 @@
 
                 try {
                     const configFileContent = await readFileContent(updateConfigFileInput);
-                    // Validate if it's JSON before sending? For now, assuming it is.
-                    // const configData = JSON.parse(configFileContent);
-
-                    // Example: PUT /ssc/api/instances/{instanceId}/config
-                    await makeApiCall(`/instances/${instanceId}/config`, 'PUT', configFileContent); // Send raw string
-                    logSuccess(`Configuration successfully updated for instance '${instanceId}'.`);
+                    // Assuming PUT to /config with the new configuration content
+                    await makeApiCall('/config', 'PUT', configFileContent);
+                    logSuccess('Instance configuration updated successfully.');
                 } catch (error) {
-                    logError(`Update configuration failed for instance '${instanceId}'. ${error.message}`);
+                    logError(`Update instance configuration failed. ${error.message}`);
                 }
             }
 
             async function updateInstance() {
                 logMessage('Attempting to update (upgrade) instance...');
                  try {
-                    // Similar to deploy, this is a placeholder.
-                    // const instanceId = updateInstanceIdInput.value.trim();
-                    // if (!instanceId) {
-                    //    logError('Instance ID is required for update.');
-                    //    return;
-                    // }
-                    // await makeApiCall(`/instances/${instanceId}/update`, 'POST', { someUpdateParams: 'data' });
-                    logMessage('Update Instance: Full implementation pending image file selector and specific update parameters.');
-                    logSuccess('Simulated Update Instance: API call structure is ready.');
+                    // Assuming POST to /update triggers the instance upgrade
+                    // This might not need a body, or might need specific parameters not yet defined.
+                    await makeApiCall('/update', 'POST');
+                    logSuccess('Instance update/upgrade process initiated successfully.');
+                    // logMessage('Update Instance: Full implementation may depend on specific update parameters if any.');
                 } catch (error) {
                     logError(`Update instance failed: ${error.message}`);
                 }
