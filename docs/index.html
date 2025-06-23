@@ -462,7 +462,7 @@
                         throw new Error(`File must contain LPAR_IP, LPAR_USER, and LPAR_PASSWORD. Found: ${Object.keys(credentials).join(', ')}`);
                     }
 
-                    const apiBaseUrl = `http://${credentials.LPAR_IP}/ssc/api`; // Placeholder structure
+                    const apiBaseUrl = `https://${credentials.LPAR_IP}/ssc/api`; // Changed to HTTPS
 
                     const sscDataToStore = {
                         credentials: {
