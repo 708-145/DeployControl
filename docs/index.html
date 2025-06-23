@@ -367,7 +367,7 @@
             }
 
             // Centralized API Call Function
-            async function makeApiCall(path, method, body = null) {
+            async function makeApiCall(path, method, body = null, customHeaders = {}) { // Added customHeaders parameter
                 const storedData = localStorage.getItem(SSC_STORAGE_KEY);
                 if (!storedData) {
                     logError('API call failed: Credentials not found in local storage.');
@@ -391,30 +391,37 @@
                 const { apiBaseUrl } = sscData;
                 const fullUrl = apiBaseUrl + path; // Path should start with '/'
 
-                const headers = {
+                let effectiveHeaders = {
                     'Authorization': 'Basic ' + btoa(user + ':' + password),
-                    'zACI-API': 'com.ibm.zaci.system/1.0' // Default zACI-API header
+                    'zACI-API': 'com.ibm.zaci.system/1.0', // Default zACI-API header
+                    ...customHeaders // Spread customHeaders here, allowing them to override defaults
                 };
-
-                // Specific headers for export configuration download
-                if (path === '/config' && method === 'GET') {
-                    headers['Accept'] = 'application/octet-stream';
-                }
 
                 const fetchOptions = {
                     method: method,
-                    headers: headers
+                    headers: effectiveHeaders // Use the merged headers
                 };
 
                 if (body instanceof FormData) {
                     fetchOptions.body = body;
                     // Do NOT set Content-Type for FormData, browser does it with boundary
+                    // However, if customHeaders explicitly sets Content-Type for FormData (e.g. 'multipart/form-data' without boundary for some servers)
+                    // it would be respected here. Usually, it's best to let browser set it for FormData.
+                    if (customHeaders['Content-Type']) {
+                        fetchOptions.headers['Content-Type'] = customHeaders['Content-Type'];
+                    } else {
+                        // If FormData and no custom Content-Type, delete it so browser sets it with boundary
+                        delete fetchOptions.headers['Content-Type'];
+                    }
                     logMessage(`API Call: ${method} ${fullUrl} with FormData`);
                 } else if (body) {
                     fetchOptions.body = (typeof body === 'string' ? body : JSON.stringify(body));
-                    fetchOptions.headers['Content-Type'] = 'application/json'; // Override if body is JSON
+                    // Set Content-Type to application/json by default for non-FormData if not already set by customHeaders
+                    if (!fetchOptions.headers['Content-Type']) {
+                        fetchOptions.headers['Content-Type'] = 'application/json';
+                    }
                     logMessage(`API Call: ${method} ${fullUrl}`);
-                    logMessage(`With JSON body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
+                    logMessage(`With body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
                 } else {
                     logMessage(`API Call: ${method} ${fullUrl}`);
                 }
@@ -428,11 +435,14 @@
                         throw new Error(`HTTP error ${response.status} (${response.statusText}): ${errorText}`);
                     }
 
-                    // For export, expect octet-stream and handle as blob for download
-                    if (path === '/config' && method === 'GET' && response.headers.get("content-type") === "application/octet-stream") {
+                    // Determine how to process the response based on Accept header or Content-Type
+                    const acceptHeader = fetchOptions.headers['Accept'] || '';
+                    const contentType = response.headers.get("content-type") || '';
+
+                    if (acceptHeader.includes('application/octet-stream') || contentType.includes('application/octet-stream')) {
                         logSuccess(`API Success: ${method} ${fullUrl} responded with octet-stream.`);
-                        return await response.blob(); // Return blob for download handling
-                    } else if (response.headers.get("content-type") && response.headers.get("content-type").includes("application/json")) {
+                        return await response.blob();
+                    } else if (contentType.includes("application/json")) {
                         const jsonData = await response.json();
                         logSuccess(`API Success: ${method} ${fullUrl} responded with JSON.`);
                         return jsonData;
@@ -572,70 +582,39 @@
 
             async function exportConfig() {
                 logMessage('Attempting to export instance configuration...');
-                try {
-                    // Path for export should align with what the python script uses or a known functional equivalent.
-                    // The python script uses:
-                    // 1. PUT /api/com.ibm.aqt/cluster/export_ssc_config  (data: {"kind": "request", "parameters": {"description": "Db2 Analytics Accelerator"}})
-                    // 2. POST /api/com.ibm.zaci.system/appliance-configuration/export (data: same as above, but also header Accept: application/octet-stream)
-                    // 3. PUT /api/com.ibm.aqt/components/exportcleanup
-                    // This is a multi-step process. A simple GET /config is unlikely to work as per the python script.
-                    // For this HTML tool, we might need to simplify or assume a single endpoint if one exists.
-                    // Let's assume for now the user wants to hit the direct download part, which is POST to /appliance-configuration/export
-                    // and it expects a description.
 
+                try {
                     logMessage('Step 1: Triggering export_ssc_config (simulated, actual call might be needed)...');
-                    // In a real scenario, this might be:
-                    // await makeApiCall('/com.ibm.aqt/cluster/export_ssc_config', 'PUT', JSON.stringify({
-                    // kind: "request",
-                    // parameters: {"description": "Db2 Analytics Accelerator Config Export via DeployControl"}
-                    // }));
-                    // For now, we'll proceed directly to the download call, which might require prior setup on the server.
+                    // If Step 1 (PUT /api/com.ibm.aqt/cluster/export_ssc_config) is truly needed,
+                    // it would be called here using the main makeApiCall with appropriate zACI-API header if different:
+                    // await makeApiCall(
+                    //    '/com.ibm.aqt/cluster/export_ssc_config',
+                    //    'PUT',
+                    //    { kind: "request", parameters: {"description": "Db2 Analytics Accelerator Config Export via DeployControl"} },
+                    //    { 'zACI-API': 'com.ibm.aqt/1.0' } // Example if this call needs a different zACI-API
+                    // );
 
                     const exportPayload = {
                         kind: "request",
                         parameters: {"description": "Configuration export from DeployControl"}
                     };
 
-                    // The actual download from python script is a POST, not GET.
-                    // And it requires 'Accept': 'application/octet-stream' which is now handled in makeApiCall for GET /config
-                    // Re-evaluating: The python script POSTs to /api/com.ibm.zaci.system/appliance-configuration/export
-                    // Let's try to mimic that more closely. This means makeApiCall needs to handle Accept for POST too.
-                    // For now, let's change the path and method for exportConfig.
-                    // The makeApiCall was modified for GET /config to return a blob. We need similar for this POST.
-
-                    // Temporarily adjusting makeApiCall to handle Accept for POST on this specific path for export
-                    const originalMakeApiCall = makeApiCall; // Store original
-                    window.makeApiCall = async (path, method, body = null) => { // Override
-                        if (path === '/com.ibm.zaci.system/appliance-configuration/export' && method === 'POST') {
-                            const sscData = JSON.parse(localStorage.getItem(SSC_STORAGE_KEY));
-                            const { user, password } = sscData.credentials;
-                            const { apiBaseUrl } = sscData;
-                            const fullUrl = apiBaseUrl + path;
-                            const headers = {
-                                'Authorization': 'Basic ' + btoa(user + ':' + password),
-                                'zACI-API': 'com.ibm.zaci.system/1.0', // As per python script context
-                                'Content-Type': 'application/json', // Payload is JSON
-                                'Accept': 'application/octet-stream' // We want a file back
-                            };
-                            const fetchOptions = { method, headers, body: JSON.stringify(body) };
-                            logMessage(`API Call (Export POST): ${method} ${fullUrl}`);
-                            const response = await fetch(fullUrl, fetchOptions);
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                logError(`API Error ${response.status} (${response.statusText}) for Export: ${errorText}`);
-                                throw new Error(`HTTP error ${response.status} (${response.statusText}): ${errorText}`);
-                            }
-                            logSuccess(`API Success (Export POST): ${method} ${fullUrl} responded, expecting octet-stream.`);
-                            return response.blob();
-                        }
-                        return originalMakeApiCall(path, method, body); // Call original for other paths
+                    // For the download part, we expect octet-stream
+                    const downloadHeaders = {
+                        'Accept': 'application/octet-stream',
+                        // The zACI-API for this specific endpoint from python scripts was com.ibm.zaci.system/1.0, which is default in makeApiCall
+                        // If it were different, we'd specify it here: e.g., 'zACI-API': 'com.ibm.zaci.system/1.0'
+                        // Content-Type for the payload will be application/json by default in makeApiCall
                     };
 
-                    const blobData = await makeApiCall('/com.ibm.zaci.system/appliance-configuration/export', 'POST', exportPayload);
+                    const blobData = await makeApiCall(
+                        '/com.ibm.zaci.system/appliance-configuration/export', // Path from python script
+                        'POST',                                               // Method from python script
+                        exportPayload,                                        // Body
+                        downloadHeaders                                       // Custom headers for this call
+                    );
 
-                    window.makeApiCall = originalMakeApiCall; // Restore original makeApiCall
-
-                    let filename = "ssc_configuration_export.zip"; // Default, often it's a zip
+                    let filename = "ssc_configuration_export.zip";
                     const sscData = JSON.parse(localStorage.getItem(SSC_STORAGE_KEY));
                     if (sscData && sscData.credentials && sscData.credentials.ip) {
                         filename = `ssc_config-${sscData.credentials.ip.replace(/\./g, '_')}.zip`;
@@ -650,13 +629,12 @@
                     URL.revokeObjectURL(link.href);
                     logSuccess(`Instance configuration downloaded as ${filename}.`);
 
-                    // Optional: Call cleanup endpoint (PUT /api/com.ibm.aqt/components/exportcleanup)
+                    // Optional: Call cleanup endpoint
                     // await makeApiCall('/com.ibm.aqt/components/exportcleanup', 'PUT');
                     // logMessage('Export cleanup called.');
 
                 } catch (error) {
-                    logError(`Export instance configuration failed. ${error.message}`);
-                     window.makeApiCall = originalMakeApiCall; // Ensure restoration on error too
+                    logError(`Export instance configuration failed overall: ${error.message}`);
                 }
             }
 
