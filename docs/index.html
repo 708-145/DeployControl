@@ -81,7 +81,7 @@
         #results {
             /* display: flex; flex-direction: column; -- Removed */
             flex-grow: 1; /* Takes available space in left-sidebar after credentials */
-            overflow-y: auto; /* This section will scroll if its content overflows */
+            /* overflow-y: auto; -- Removed as per user request, scrolling will be on #results-output */
             min-height: 0; /* Allows this flex item to shrink if necessary */
         }
 
@@ -99,7 +99,8 @@
             font-family: "Courier New", Courier, monospace;
             margin-top: 10px;
             /* flex-grow: 1; -- Removed */
-            /* overflow-y: auto; -- Removed, parent section#results handles scrolling */
+            overflow-y: auto; /* Added for scrolling */
+            max-height: 300px; /* Added to enable scrolling after this height */
             min-height: 150px; /* Retain for minimum visibility when logs are empty */
             /* min-height: 0; -- Removed, using specific min-height above */
         }
@@ -320,17 +321,20 @@
             // --- Logging ---
             function logMessage(message) {
                 console.log(message);
-                resultsOutput.textContent = `[INFO] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+                resultsOutput.textContent += `[INFO] ${new Date().toLocaleTimeString()}: ${message}\n`;
+                resultsOutput.scrollTop = resultsOutput.scrollHeight;
             }
 
             function logError(error) {
                 console.error(error);
-                resultsOutput.textContent = `[ERROR] ${new Date().toLocaleTimeString()}: ${error}\n` + resultsOutput.textContent;
+                resultsOutput.textContent += `[ERROR] ${new Date().toLocaleTimeString()}: ${error}\n`;
+                resultsOutput.scrollTop = resultsOutput.scrollHeight;
             }
 
             function logSuccess(message) {
                 console.log(message);
-                resultsOutput.textContent = `[SUCCESS] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+                resultsOutput.textContent += `[SUCCESS] ${new Date().toLocaleTimeString()}: ${message}\n`;
+                resultsOutput.scrollTop = resultsOutput.scrollHeight;
             }
 
             // --- Credential Management & Loading ---
