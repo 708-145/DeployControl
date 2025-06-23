@@ -222,13 +222,12 @@
                 <h2>Host Credentials & API Endpoint</h2>
                 <div>
                     <label for="credentials-file-input">Load Credentials File:</label>
-                    <input type="file" id="credentials-file-input"> {/* Removed accept attribute */}
+                    <input type="file" id="credentials-file-input">
                     <button id="load-credentials-button">Load Credentials File</button>
                 </div>
                 <div>
                     <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
                     <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
-                    {/* SSC API Base URL display removed */}
                 </div>
             </section>
             <section id="results">
@@ -276,7 +275,7 @@
             <section id="update-instance">
                 <h2>Update (Upgrade) Instance</h2>
                 <div>
-                    <label for="update-image-file">New Image File (optional):</label>
+                    <label for="update-image-file">New Image File:</label>
                     <input type="file" id="update-image-file" name="update-image-file">
                 </div>
                 <!-- Future: Add options for version, etc. if needed -->
