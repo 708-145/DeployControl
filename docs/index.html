@@ -220,7 +220,10 @@
     <main>
         <div id="left-sidebar">
             <section id="credentials-config">
-                <h2>Host Credentials & API Endpoint</h2>
+                <h2>Instance Credentials</h2>
+                <div style="padding: 10px; border: 1px solid #ffcc00; background-color: #fff9e6; margin-bottom: 15px; border-radius: 4px;">
+                    <strong>Important Note on CORS:</strong> Direct API calls from this web page will likely be blocked by your browser's Same-Origin Policy (SOP). For these calls to succeed, the SSC/LPAR server at the target IP address must be configured to send appropriate CORS (Cross-Origin Resource Sharing) headers, such as `Access-Control-Allow-Origin`.
+                </div>
                 <div>
                     <label for="credentials-file-input">Load Credentials File:</label>
                     <input type="file" id="credentials-file-input">
@@ -364,7 +367,7 @@
             }
 
             // Centralized API Call Function
-            async function makeApiCall(path, method, body = null) {
+            async function makeApiCall(path, method, body = null, customHeaders = {}) { // Added customHeaders parameter
                 const storedData = localStorage.getItem(SSC_STORAGE_KEY);
                 if (!storedData) {
                     logError('API call failed: Credentials not found in local storage.');
@@ -386,41 +389,60 @@
 
                 const { user, password } = sscData.credentials;
                 const { apiBaseUrl } = sscData;
-                const fullUrl = apiBaseUrl + path;
+                const fullUrl = apiBaseUrl + path; // Path should start with '/'
+
+                let effectiveHeaders = {
+                    'Authorization': 'Basic ' + btoa(user + ':' + password),
+                    'zACI-API': 'com.ibm.zaci.system/1.0', // Default zACI-API header
+                    ...customHeaders // Spread customHeaders here, allowing them to override defaults
+                };
 
                 const fetchOptions = {
                     method: method,
-                    headers: {
-                        'Authorization': 'Basic ' + btoa(user + ':' + password)
-                    }
+                    headers: effectiveHeaders // Use the merged headers
                 };
 
                 if (body instanceof FormData) {
                     fetchOptions.body = body;
                     // Do NOT set Content-Type for FormData, browser does it with boundary
+                    // However, if customHeaders explicitly sets Content-Type for FormData (e.g. 'multipart/form-data' without boundary for some servers)
+                    // it would be respected here. Usually, it's best to let browser set it for FormData.
+                    if (customHeaders['Content-Type']) {
+                        fetchOptions.headers['Content-Type'] = customHeaders['Content-Type'];
+                    } else {
+                        // If FormData and no custom Content-Type, delete it so browser sets it with boundary
+                        delete fetchOptions.headers['Content-Type'];
+                    }
                     logMessage(`API Call: ${method} ${fullUrl} with FormData`);
                 } else if (body) {
                     fetchOptions.body = (typeof body === 'string' ? body : JSON.stringify(body));
-                    fetchOptions.headers['Content-Type'] = 'application/json';
+                    // Set Content-Type to application/json by default for non-FormData if not already set by customHeaders
+                    if (!fetchOptions.headers['Content-Type']) {
+                        fetchOptions.headers['Content-Type'] = 'application/json';
+                    }
                     logMessage(`API Call: ${method} ${fullUrl}`);
-                    logMessage(`With JSON body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
+                    logMessage(`With body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
                 } else {
                     logMessage(`API Call: ${method} ${fullUrl}`);
                 }
-
 
                 try {
                     const response = await fetch(fullUrl, fetchOptions);
 
                     if (!response.ok) {
                         const errorText = await response.text();
-                        logError(`API Error ${response.status}: ${errorText}`);
-                        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                        logError(`API Error ${response.status} (${response.statusText}) from ${method} ${fullUrl}: ${errorText}`);
+                        throw new Error(`HTTP error ${response.status} (${response.statusText}): ${errorText}`);
                     }
 
-                    // Try to parse JSON if content type suggests it, otherwise return text
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
+                    // Determine how to process the response based on Accept header or Content-Type
+                    const acceptHeader = fetchOptions.headers['Accept'] || '';
+                    const contentType = response.headers.get("content-type") || '';
+
+                    if (acceptHeader.includes('application/octet-stream') || contentType.includes('application/octet-stream')) {
+                        logSuccess(`API Success: ${method} ${fullUrl} responded with octet-stream.`);
+                        return await response.blob();
+                    } else if (contentType.includes("application/json")) {
                         const jsonData = await response.json();
                         logSuccess(`API Success: ${method} ${fullUrl} responded with JSON.`);
                         return jsonData;
@@ -478,7 +500,8 @@
                         throw new Error(`File must contain LPAR_IP, LPAR_USER, and LPAR_PASSWORD. Found: ${Object.keys(credentials).join(', ')}`);
                     }
 
-                    const apiBaseUrl = `https://${credentials.LPAR_IP}/ssc/api`; // Changed to HTTPS
+                    // Use /api as the base, consistent with Python scripts and curl tests for zACI
+                    const apiBaseUrl = `https://${credentials.LPAR_IP}/api`;
 
                     const sscDataToStore = {
                         credentials: {
@@ -559,20 +582,46 @@
 
             async function exportConfig() {
                 logMessage('Attempting to export instance configuration...');
-                try {
-                    // Assuming GET from /config returns the current instance's configuration
-                    const configData = await makeApiCall('/config', 'GET');
 
-                    let filename = "config.json"; // Default filename
+                try {
+                    logMessage('Step 1: Triggering export_ssc_config (simulated, actual call might be needed)...');
+                    // If Step 1 (PUT /api/com.ibm.aqt/cluster/export_ssc_config) is truly needed,
+                    // it would be called here using the main makeApiCall with appropriate zACI-API header if different:
+                    // await makeApiCall(
+                    //    '/com.ibm.aqt/cluster/export_ssc_config',
+                    //    'PUT',
+                    //    { kind: "request", parameters: {"description": "Db2 Analytics Accelerator Config Export via DeployControl"} },
+                    //    { 'zACI-API': 'com.ibm.aqt/1.0' } // Example if this call needs a different zACI-API
+                    // );
+
+                    const exportPayload = {
+                        kind: "request",
+                        parameters: {"description": "Configuration export from DeployControl"}
+                    };
+
+                    // For the download part, we expect octet-stream
+                    const downloadHeaders = {
+                        'Accept': 'application/octet-stream',
+                        // The zACI-API for this specific endpoint from python scripts was com.ibm.zaci.system/1.0, which is default in makeApiCall
+                        // If it were different, we'd specify it here: e.g., 'zACI-API': 'com.ibm.zaci.system/1.0'
+                        // Content-Type for the payload will be application/json by default in makeApiCall
+                    };
+
+                    const blobData = await makeApiCall(
+                        '/com.ibm.zaci.system/appliance-configuration/export', // Path from python script
+                        'POST',                                               // Method from python script
+                        exportPayload,                                        // Body
+                        downloadHeaders                                       // Custom headers for this call
+                    );
+
+                    let filename = "ssc_configuration_export.zip";
                     const sscData = JSON.parse(localStorage.getItem(SSC_STORAGE_KEY));
                     if (sscData && sscData.credentials && sscData.credentials.ip) {
-                        filename = `config-${sscData.credentials.ip.replace(/\./g, '_')}.json`;
+                        filename = `ssc_config-${sscData.credentials.ip.replace(/\./g, '_')}.zip`;
                     }
 
-                    const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
-
                     const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
+                    link.href = URL.createObjectURL(blobData);
                     link.download = filename;
                     document.body.appendChild(link);
                     link.click();
@@ -580,8 +629,12 @@
                     URL.revokeObjectURL(link.href);
                     logSuccess(`Instance configuration downloaded as ${filename}.`);
 
+                    // Optional: Call cleanup endpoint
+                    // await makeApiCall('/com.ibm.aqt/components/exportcleanup', 'PUT');
+                    // logMessage('Export cleanup called.');
+
                 } catch (error) {
-                    logError(`Export instance configuration failed. ${error.message}`);
+                    logError(`Export instance configuration failed overall: ${error.message}`);
                 }
             }
 
