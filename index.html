@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSC Instance Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+        }
+
+        main {
+            padding: 1rem;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ddd;
+            margin: 30px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: calc(100% - 22px); /* Account for padding and border */
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #5cb85c;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        #clear-api-config {
+            background-color: #d9534f;
+        }
+        #clear-api-config:hover {
+            background-color: #c9302c;
+        }
+
+        #results-output {
+            background-color: #e9e9e9;
+            border: 1px solid #ccc;
+            min-height: 100px;
+            padding: 10px;
+            white-space: pre-wrap; /* Preserves whitespace and newlines */
+            word-wrap: break-word; /* Breaks long words to prevent overflow */
+            font-family: "Courier New", Courier, monospace;
+            margin-top: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            main {
+                margin: 10px;
+                padding: 0.5rem;
+            }
+            input[type="text"],
+            input[type="file"],
+            button {
+                width: 100%;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>SSC Instance Manager</h1>
+    </header>
+
+    <main>
+        <section id="config-management">
+            <h2>SSC API Configuration</h2>
+            <div>
+                <label for="api-endpoint">SSC API Base URL:</label>
+                <input type="text" id="api-endpoint" name="api-endpoint" style="width: 300px;">
+                <button id="save-api-config">Save Endpoint</button>
+                <button id="clear-api-config">Clear Endpoint</button>
+            </div>
+            <p>Current Endpoint: <span id="current-api-endpoint">Not set</span></p>
+        </section>
+
+        <hr>
+
+        <section id="deploy-instance">
+            <h2>Deploy New SSC Instance</h2>
+            <div>
+                <label for="deploy-config-file">Configuration File (JSON):</label>
+                <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
+            </div>
+            <div>
+                <label for="deploy-instance-id">Instance ID (optional):</label>
+                <input type="text" id="deploy-instance-id" name="deploy-instance-id">
+            </div>
+            <button id="deploy-button">Deploy Instance</button>
+        </section>
+
+        <hr>
+
+        <section id="export-config">
+            <h2>Export Instance Configuration</h2>
+            <div>
+                <label for="export-instance-id">Instance ID:</label>
+                <input type="text" id="export-instance-id" name="export-instance-id" required>
+            </div>
+            <button id="export-config-button">Export Configuration</button>
+        </section>
+
+        <hr>
+
+        <section id="update-config">
+            <h2>Update Instance Configuration</h2>
+            <div>
+                <label for="update-config-instance-id">Instance ID:</label>
+                <input type="text" id="update-config-instance-id" name="update-config-instance-id" required>
+            </div>
+            <div>
+                <label for="update-config-file">New Configuration File (JSON):</label>
+                <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
+            </div>
+            <button id="update-config-button">Update Configuration</button>
+        </section>
+
+        <hr>
+
+        <section id="update-instance">
+            <h2>Update (Upgrade) Instance</h2>
+            <div>
+                <label for="update-instance-id">Instance ID:</label>
+                <input type="text" id="update-instance-id" name="update-instance-id" required>
+            </div>
+            <!-- Future: Add options for version, etc. if needed -->
+            <button id="update-instance-button">Update Instance</button>
+        </section>
+
+        <hr>
+
+        <section id="results">
+            <h2>Results / Logs</h2>
+            <div id="results-output" style="border: 1px solid #ccc; min-height: 100px; padding: 10px; white-space: pre-wrap;">
+                Waiting for action...
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>SSC Management Tool</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiEndpointInput = document.getElementById('api-endpoint');
+            const saveApiConfigButton = document.getElementById('save-api-config');
+            const clearApiConfigButton = document.getElementById('clear-api-config');
+            const currentApiEndpointSpan = document.getElementById('current-api-endpoint');
+            const resultsOutput = document.getElementById('results-output');
+
+            const deployButton = document.getElementById('deploy-button');
+            const deployConfigFileInput = document.getElementById('deploy-config-file');
+            const deployInstanceIdInput = document.getElementById('deploy-instance-id');
+
+            const exportConfigButton = document.getElementById('export-config-button');
+            const exportInstanceIdInput = document.getElementById('export-instance-id');
+
+            const updateConfigButton = document.getElementById('update-config-button');
+            const updateConfigInstanceIdInput = document.getElementById('update-config-instance-id');
+            const updateConfigFileInput = document.getElementById('update-config-file');
+
+            const updateInstanceButton = document.getElementById('update-instance-button');
+            const updateInstanceIdInput = document.getElementById('update-instance-id');
+
+            const SSC_API_ENDPOINT_KEY = 'sscApiEndpoint';
+
+            // --- Configuration Management ---
+            function loadApiEndpoint() {
+                const endpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
+                if (endpoint) {
+                    apiEndpointInput.value = endpoint;
+                    currentApiEndpointSpan.textContent = endpoint;
+                    logMessage(`Loaded API endpoint from local storage: ${endpoint}`);
+                } else {
+                    currentApiEndpointSpan.textContent = 'Not set';
+                    logMessage('No API endpoint found in local storage.');
+                }
+            }
+
+            function saveApiEndpoint() {
+                const endpoint = apiEndpointInput.value.trim();
+                if (endpoint) {
+                    localStorage.setItem(SSC_API_ENDPOINT_KEY, endpoint);
+                    currentApiEndpointSpan.textContent = endpoint;
+                    logMessage(`API endpoint saved: ${endpoint}`);
+                } else {
+                    logError('API endpoint cannot be empty.');
+                }
+            }
+
+            function clearApiEndpoint() {
+                localStorage.removeItem(SSC_API_ENDPOINT_KEY);
+                apiEndpointInput.value = '';
+                currentApiEndpointSpan.textContent = 'Not set';
+                logMessage('API endpoint cleared from local storage.');
+            }
+
+            // --- Logging ---
+            function logMessage(message) {
+                console.log(message);
+                resultsOutput.textContent = `[INFO] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+            }
+
+            function logError(error) {
+                console.error(error);
+                resultsOutput.textContent = `[ERROR] ${new Date().toLocaleTimeString()}: ${error}\n` + resultsOutput.textContent;
+            }
+
+            function logSuccess(message) {
+                console.log(message);
+                resultsOutput.textContent = `[SUCCESS] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+            }
+
+            // --- API Call Placeholders ---
+            // Simulates reading a file and returning its content as text
+            async function readFileContent(fileInput) {
+                return new Promise((resolve, reject) => {
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        reject('No file selected.');
+                        return;
+                    }
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        resolve(event.target.result);
+                    };
+                    reader.onerror = (error) => {
+                        reject('Error reading file: ' + error);
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            async function deployInstance() {
+                logMessage('Attempting to deploy instance...');
+                const instanceId = deployInstanceIdInput.value.trim();
+                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
+
+                if (!apiEndpoint) {
+                    logError('API Endpoint not set. Please configure it first.');
+                    return;
+                }
+                if (!deployConfigFileInput.files || deployConfigFileInput.files.length === 0) {
+                    logError('Please select a configuration file for deployment.');
+                    return;
+                }
+
+                try {
+                    const configFileContent = await readFileContent(deployConfigFileInput);
+                    // In a real scenario, you'd parse JSON: const configData = JSON.parse(configFileContent);
+                    logMessage(`Instance ID: ${instanceId || '(auto-generated by SSC)'}`);
+                    logMessage(`Configuration file selected: ${deployConfigFileInput.files[0].name}`);
+                    // logMessage(`Config content (first 100 chars): ${configFileContent.substring(0,100)}...`);
+
+                    // Placeholder for actual API call
+                    // const url = `${apiEndpoint}/deploy`; // Adjust endpoint as needed
+                    // const method = 'POST';
+                    // const body = { instanceId, configuration: configData }; // Or raw content
+                    // const response = await fetch(url, { method, body: JSON.stringify(body), headers: {'Content-Type': 'application/json'} });
+                    // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    // const result = await response.json();
+                    // logSuccess(`Deployment successful: ${JSON.stringify(result)}`);
+
+                    logSuccess(`Simulated Deploy: Would POST to ${apiEndpoint}/deploy with instance ID '${instanceId}' and config from '${deployConfigFileInput.files[0].name}'.`);
+                } catch (error) {
+                    logError(`Deployment failed: ${error.message}`);
+                }
+            }
+
+            async function exportConfig() {
+                logMessage('Attempting to export configuration...');
+                const instanceId = exportInstanceIdInput.value.trim();
+                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
+
+                if (!apiEndpoint) {
+                    logError('API Endpoint not set. Please configure it first.');
+                    return;
+                }
+                if (!instanceId) {
+                    logError('Instance ID is required for export.');
+                    return;
+                }
+
+                // Placeholder for actual API call
+                // const url = `${apiEndpoint}/instances/${instanceId}/config`; // Adjust endpoint
+                // const response = await fetch(url);
+                // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                // const configData = await response.json(); // or .text() if it's not JSON
+                // const filename = `config-${instanceId}.json`;
+                // const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
+                // const link = document.createElement('a');
+                // link.href = URL.createObjectURL(blob);
+                // link.download = filename;
+                // document.body.appendChild(link);
+                // link.click();
+                // document.body.removeChild(link);
+                // URL.revokeObjectURL(link.href);
+                // logSuccess(`Configuration for instance '${instanceId}' exported as ${filename}.`);
+
+                logSuccess(`Simulated Export: Would GET from ${apiEndpoint}/instances/${instanceId}/config. And offer download.`);
+            }
+
+            async function updateConfig() {
+                logMessage('Attempting to update configuration...');
+                const instanceId = updateConfigInstanceIdInput.value.trim();
+                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
+
+                if (!apiEndpoint) {
+                    logError('API Endpoint not set. Please configure it first.');
+                    return;
+                }
+                if (!instanceId) {
+                    logError('Instance ID is required for updating configuration.');
+                    return;
+                }
+                if (!updateConfigFileInput.files || updateConfigFileInput.files.length === 0) {
+                    logError('Please select a new configuration file.');
+                    return;
+                }
+
+                try {
+                    const configFileContent = await readFileContent(updateConfigFileInput);
+                    // const configData = JSON.parse(configFileContent);
+                    logMessage(`Instance ID: ${instanceId}`);
+                    logMessage(`New configuration file selected: ${updateConfigFileInput.files[0].name}`);
+
+                    // Placeholder for actual API call
+                    // const url = `${apiEndpoint}/instances/${instanceId}/config`; // Adjust endpoint
+                    // const method = 'PUT'; // or PATCH
+                    // const body = configData;
+                    // const response = await fetch(url, { method, body: JSON.stringify(body), headers: {'Content-Type': 'application/json'} });
+                    // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    // const result = await response.json();
+                    // logSuccess(`Configuration update successful for instance '${instanceId}': ${JSON.stringify(result)}`);
+
+                    logSuccess(`Simulated Update Config: Would PUT/PATCH to ${apiEndpoint}/instances/${instanceId}/config with content from '${updateConfigFileInput.files[0].name}'.`);
+                } catch (error) {
+                    logError(`Configuration update failed: ${error.message}`);
+                }
+            }
+
+            async function updateInstance() {
+                logMessage('Attempting to update (upgrade) instance...');
+                const instanceId = updateInstanceIdInput.value.trim();
+                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
+
+                if (!apiEndpoint) {
+                    logError('API Endpoint not set. Please configure it first.');
+                    return;
+                }
+                if (!instanceId) {
+                    logError('Instance ID is required for update.');
+                    return;
+                }
+
+                // Placeholder for actual API call
+                // const url = `${apiEndpoint}/instances/${instanceId}/update`; // Adjust endpoint
+                // const method = 'POST'; // Or PUT, depending on API design
+                // const response = await fetch(url, { method });
+                // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                // const result = await response.json();
+                // logSuccess(`Instance update successful for '${instanceId}': ${JSON.stringify(result)}`);
+
+                logSuccess(`Simulated Update Instance: Would POST to ${apiEndpoint}/instances/${instanceId}/update.`);
+            }
+
+            // --- Event Listeners ---
+            saveApiConfigButton.addEventListener('click', saveApiEndpoint);
+            clearApiConfigButton.addEventListener('click', clearApiEndpoint);
+
+            deployButton.addEventListener('click', deployInstance);
+            exportConfigButton.addEventListener('click', exportConfig);
+            updateConfigButton.addEventListener('click', updateConfig);
+            updateInstanceButton.addEventListener('click', updateInstance);
+
+            // --- Initial Load ---
+            loadApiEndpoint();
+            logMessage('SSC Instance Manager Initialized. Please set your API Endpoint.');
+        });
+    </script>
+</body>
+</html>
