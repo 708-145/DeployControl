@@ -47,7 +47,9 @@
             position: sticky;
             top: 0; /* Stick to the top of the main container */
             height: 100%; /* Take full height of the main container */
-            overflow-y: auto; /* Allow entire left sidebar to scroll if needed */
+            overflow: hidden; /* Sidebar itself should not scroll */
+            display: flex;
+            flex-direction: column;
             padding: 1rem;
             border-right: 1px solid #ddd;
             background-color: #f9f9f9; /* Slight background to differentiate */
@@ -72,15 +74,19 @@
 
         /* Specifics for sections within left-sidebar */
         #credentials-config {
+            flex-shrink: 0; /* Prevent credentials section from shrinking */
             /* Default block behavior, margin-bottom from rule above */
         }
 
         #results {
             display: flex;
             flex-direction: column;
-            /* Allow #results to take up space, but #results-output controls its own size mostly */
-            flex-grow: 1; /* If left-sidebar has extra space, results section can grow */
-            min-height: 200px; /* Give results section a decent min height */
+            flex-grow: 1; /* Takes available space in left-sidebar after credentials */
+            min-height: 0; /* Crucial for flex-grow to work correctly with overflow content */
+        }
+
+        #results > h2 {
+            flex-shrink: 0; /* Prevent title from shrinking */
         }
 
         #results-output {
@@ -220,7 +226,7 @@
                 <div>
                     <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
                     <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
-                    <p>SSC API Base URL: <strong id="display-api-base-url">Not set</strong></p>
+                    {/* SSC API Base URL display removed */}
                 </div>
             </section>
             <section id="results">
