@@ -8,105 +8,110 @@
         * {
             box-sizing: border-box;
         }
-        body {
-            font-family: Arial, sans-serif;
+        html, body {
+            height: 100%;
             margin: 0;
             padding: 0;
+            overflow-x: hidden; /* Prevent horizontal scrollbars from slight miscalculations */
+        }
+        body {
+            font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             color: #333;
             line-height: 1.6;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
             background-color: #333;
             color: #fff;
-            padding: 1rem 0;
+            padding: 0.75rem 0; /* Slightly reduced padding */
             text-align: center;
+            flex-shrink: 0; /* Prevent header from shrinking if content is too tall */
         }
 
         header h1 {
             margin: 0;
+            font-size: 1.5em; /* Slightly reduced font size */
         }
 
         main {
-            padding: 1rem;
-            max-width: 800px;
-            margin: 20px auto;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-grow: 1; /* Main content takes available vertical space */
+            overflow: hidden; /* Important: children will handle their own scroll */
         }
 
-        section {
-            margin-bottom: 20px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            /* General section margin, may need to override for flex children */
-            margin-bottom: 20px;
-        }
-
-        #sticky-top-panel {
+        #left-sidebar {
+            flex: 0 0 38%; /* Width of the left sidebar */
             position: sticky;
-            top: 0;
+            top: 0; /* Stick to the top of the main container */
+            height: 100%; /* Take full height of the main container */
+            overflow-y: auto; /* Allow entire left sidebar to scroll if needed */
+            padding: 1rem;
+            border-right: 1px solid #ddd;
+            background-color: #f9f9f9; /* Slight background to differentiate */
+        }
+
+        #right-content-area {
+            flex: 1; /* Takes remaining width */
+            overflow-y: auto; /* This column scrolls */
+            height: 100%; /* Take full height of the main container */
+            padding: 1rem;
+        }
+
+        /* Styling for sections within the columns */
+        #left-sidebar section, #right-content-area section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc; /* Unified border */
+            border-radius: 8px;
             background-color: #fff;
-            z-index: 100;
-            display: flex;
-            align-items: stretch; /* Make children same height if possible */
-            padding: 10px 1rem; /* 10px top/bottom, 1rem left/right for content alignment */
-            border-bottom: 2px solid #ddd;
-            height: 50vh; /* Occupy top 50% of viewport height */
-            overflow: hidden; /* Prevent children from expanding panel if their overflow isn't handled */
-            /* Ensure it spans full width of main container */
-            margin-left: -1rem; /* Counteract main's padding if main has padding: 1rem */
-            margin-right: -1rem; /* Counteract main's padding */
-            padding-left: 1rem; /* Restore padding for content within sticky panel */
-            padding-right: 1rem; /* Restore padding for content within sticky panel */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
-        #sticky-top-panel > section {
-            margin-bottom: 0; /* Remove bottom margin for sections within the sticky panel */
-            border: 1px solid #ccc; /* Maybe a lighter border for internal sections */
-            height: 100%; /* Make sections fill the height of sticky-top-panel */
-            display: flex;
-            flex-direction: column;
-            overflow-y: hidden; /* Children will handle their own scroll */
-        }
-
+        /* Specifics for sections within left-sidebar */
         #credentials-config {
-            flex: 1 1 45%; /* Grow, shrink, basis 45% */
-            margin-right: 10px; /* Space between credentials and results */
-            position: static; /* Override previous sticky if it was directly on this element */
-            border-bottom: none; /* Handled by panel's border */
+            /* Default block behavior, margin-bottom from rule above */
         }
-        /* The div that wraps the status display paragraphs (Current Host IP, User, API Base URL) */
-        #credentials-config > div:nth-of-type(2) { /* Targeting the second div child */
-            flex-grow: 1; /* Allow this div to grow if space allows */
-            overflow-y: auto; /* Allow this div to scroll if its content is too tall */
-            min-height: 0; /* Important for flex shrink, especially if content is short */
-            padding-bottom: 10px; /* Space for scrollbar if it appears */
-        }
-
 
         #results {
-            flex: 1 1 55%; /* Grow, shrink, basis 55% */
-            /* display: flex; flex-direction: column; height: 100%; -- already handled by #sticky-top-panel > section */
+            display: flex;
+            flex-direction: column;
+            /* Allow #results to take up space, but #results-output controls its own size mostly */
+            flex-grow: 1; /* If left-sidebar has extra space, results section can grow */
+            min-height: 200px; /* Give results section a decent min height */
         }
 
         #results-output {
             background-color: #e9e9e9;
             border: 1px solid #ccc;
-            /* min-height: 100px; -- remove if using flex-grow to fill space */
             padding: 10px;
             white-space: pre-wrap;
             word-wrap: break-word;
             font-family: "Courier New", Courier, monospace;
-            margin-top: 10px; /* This refers to margin from its section's h2 */
+            margin-top: 10px;
+            flex-grow: 1; /* Takes available height within #results section */
+            overflow-y: auto;
+            min-height: 150px; /* Ensure a usable log viewing area */
+        }
 
-            flex-grow: 1; /* Allow it to take available space in its flex parent (section#results) */
-            overflow-y: auto; /* Make this div scrollable */
-            min-height: 0; /* Important for flex item to shrink correctly */
-            /* height: 250px; -- Remove fixed height */
+        /* Remove styles for old #sticky-top-panel and its direct children */
+        #sticky-top-panel, #sticky-top-panel > section {
+            /* These selectors are no longer relevant, but no harm in explicitly resetting if needed */
+            /* However, it's cleaner if they are just removed from the stylesheet */
+        }
+        /* Resetting styles that might have been on #credentials-config and #results from Plan 9 */
+        #credentials-config, #results {
+            position: static; /* Remove any sticky or flex item properties from previous plan */
+            height: auto;
+            flex: none;
+            margin-right: 0; /* Reset margin if it was for side-by-side */
+            border-bottom: 1px solid #ccc; /* Restore default section border if it was removed */
+        }
+         /* Ensure #credentials-config has its bottom margin like other sections in the sidebar */
+        #credentials-config {
+             margin-bottom: 20px;
         }
 
 
@@ -177,7 +182,8 @@
         footer {
             text-align: center;
             padding: 1rem 0;
-            margin-top: 30px;
+            margin-top: 30px; /* This might be less relevant if main is flex-grow */
+            flex-shrink: 0; /* Prevent footer from shrinking */
             font-size: 0.9em;
             color: #777;
         }
@@ -203,7 +209,7 @@
     </header>
 
     <main>
-        <div id="sticky-top-panel">
+        <div id="left-sidebar">
             <section id="credentials-config">
                 <h2>Host Credentials & API Endpoint</h2>
                 <div>
@@ -225,47 +231,46 @@
             </section>
         </div>
 
-        <hr> {/* This HR might be visually between sticky panel and first action, or could be removed if border-bottom on sticky-panel is enough */}
+        <div id="right-content-area">
+            <section id="deploy-instance">
+                <h2>Deploy New SSC Instance</h2>
+                <div>
+                    <label for="deploy-config-file">Configuration File (JSON):</label>
+                    <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
+                </div>
+                <div>
+                    <label for="deploy-image-file">Image File:</label>
+                    <input type="file" id="deploy-image-file" name="deploy-image-file">
+                </div>
+                <button id="deploy-button">Deploy Instance</button>
+            </section>
 
-        <section id="deploy-instance">
-            <h2>Deploy New SSC Instance</h2>
-            <div>
-                <label for="deploy-config-file">Configuration File (JSON):</label>
-                <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
-            </div>
-            <div>
-                <label for="deploy-image-file">Image File:</label>
-                <input type="file" id="deploy-image-file" name="deploy-image-file">
-            </div>
-            <button id="deploy-button">Deploy Instance</button>
-        </section>
+            <hr>
 
-        <hr>
+            <section id="export-config">
+                <h2>Export Instance Configuration</h2>
+                <button id="export-config-button">Export Configuration</button>
+            </section>
 
-        <section id="export-config">
-            <h2>Export Instance Configuration</h2>
-            <button id="export-config-button">Export Configuration</button>
-        </section>
+            <hr>
 
-        <hr>
+            <section id="update-config">
+                <h2>Update Instance Configuration</h2>
+                <div>
+                    <label for="update-config-file">New Configuration File (JSON):</label>
+                    <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
+                </div>
+                <button id="update-config-button">Update Configuration</button>
+            </section>
 
-        <section id="update-config">
-            <h2>Update Instance Configuration</h2>
-            <div>
-                <label for="update-config-file">New Configuration File (JSON):</label>
-                <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
-            </div>
-            <button id="update-config-button">Update Configuration</button>
-        </section>
+            <hr>
 
-        <hr>
-
-        <section id="update-instance">
-            <h2>Update (Upgrade) Instance</h2>
-            <!-- Future: Add options for version, etc. if needed -->
-            <button id="update-instance-button">Update Instance</button>
-        </section>
-        {/* Removed section#results from here as it's moved to sticky-top-panel */}
+            <section id="update-instance">
+                <h2>Update (Upgrade) Instance</h2>
+                <!-- Future: Add options for version, etc. if needed -->
+                <button id="update-instance-button">Update Instance</button>
+            </section>
+        </div>
     </main>
 
     <footer>
