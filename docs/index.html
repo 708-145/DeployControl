@@ -156,6 +156,10 @@
                 <label for="deploy-config-file">Configuration File (JSON):</label>
                 <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
             </div>
+            <div>
+                <label for="deploy-image-file">Image File:</label>
+                <input type="file" id="deploy-image-file" name="deploy-image-file">
+            </div>
             <button id="deploy-button">Deploy Instance</button>
         </section>
 
@@ -213,7 +217,7 @@
             // Action elements
             const deployButton = document.getElementById('deploy-button');
             const deployConfigFileInput = document.getElementById('deploy-config-file');
-            // const deployInstanceIdInput = document.getElementById('deploy-instance-id'); // Removed
+            const deployImageFileInput = document.getElementById('deploy-image-file'); // Added image file input
 
             const exportConfigButton = document.getElementById('export-config-button');
             // const exportInstanceIdInput = document.getElementById('export-instance-id'); // Removed
@@ -294,24 +298,29 @@
                 const { apiBaseUrl } = sscData;
                 const fullUrl = apiBaseUrl + path;
 
-                const headers = {
-                    'Authorization': 'Basic ' + btoa(user + ':' + password)
+                const fetchOptions = {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(user + ':' + password)
+                    }
                 };
-                if (body) {
-                    headers['Content-Type'] = 'application/json';
+
+                if (body instanceof FormData) {
+                    fetchOptions.body = body;
+                    // Do NOT set Content-Type for FormData, browser does it with boundary
+                    logMessage(`API Call: ${method} ${fullUrl} with FormData`);
+                } else if (body) {
+                    fetchOptions.body = (typeof body === 'string' ? body : JSON.stringify(body));
+                    fetchOptions.headers['Content-Type'] = 'application/json';
+                    logMessage(`API Call: ${method} ${fullUrl}`);
+                    logMessage(`With JSON body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
+                } else {
+                    logMessage(`API Call: ${method} ${fullUrl}`);
                 }
 
-                logMessage(`API Call: ${method} ${fullUrl}`);
-                if (body) {
-                    logMessage(`With body (first 100 chars): ${typeof body === 'string' ? body.substring(0,100) : JSON.stringify(body).substring(0,100)}...`);
-                }
 
                 try {
-                    const response = await fetch(fullUrl, {
-                        method: method,
-                        headers: headers,
-                        body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : null
-                    });
+                    const response = await fetch(fullUrl, fetchOptions);
 
                     if (!response.ok) {
                         const errorText = await response.text();
@@ -415,18 +424,38 @@
             }
 
             async function deployInstance() {
-                logMessage('Attempting to deploy instance configuration...');
+                logMessage('Attempting to deploy instance with configuration and image...');
+
                 if (!deployConfigFileInput.files || deployConfigFileInput.files.length === 0) {
-                    logError('Please select a configuration file to deploy.');
+                    logError('Please select a configuration file (JSON) to deploy.');
                     return;
                 }
+                if (!deployImageFileInput.files || deployImageFileInput.files.length === 0) {
+                    logError('Please select an image file to deploy.');
+                    return;
+                }
+
+                const configFile = deployConfigFileInput.files[0];
+                const imageFile = deployImageFileInput.files[0];
+
                 try {
                     const configFileContent = await readFileContent(deployConfigFileInput);
-                    // Assuming POST to /config with the new configuration content
-                    await makeApiCall('/config', 'POST', configFileContent);
-                    logSuccess('Instance configuration deployed successfully.');
+
+                    const formData = new FormData();
+                    formData.append('config', configFileContent); // Assuming server expects config as a string field
+                    // Alternatively, if server expects config file as a file:
+                    // formData.append('configFile', configFile, configFile.name);
+                    formData.append('image', imageFile, imageFile.name); // Send image file as a file
+
+                    logMessage(`Deploying with Config: ${configFile.name}, Image: ${imageFile.name}`);
+
+                    // Assuming POST to /config (or /deploy) with FormData
+                    // The makeApiCall function will need to handle FormData correctly (next step)
+                    await makeApiCall('/config', 'POST', formData);
+                    logSuccess('Instance deployment initiated successfully with configuration and image.');
+
                 } catch (error) {
-                    logError(`Deploy instance configuration failed: ${error.message}`);
+                    logError(`Deploy instance failed: ${error.message}`);
                 }
             }
 
