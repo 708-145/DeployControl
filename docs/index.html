@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSC Instance Manager</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Prevent horizontal scrollbars from slight miscalculations */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 0.75rem 0; /* Slightly reduced padding */
+            text-align: center;
+            flex-shrink: 0; /* Prevent header from shrinking if content is too tall */
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5em; /* Slightly reduced font size */
+        }
+
+        main {
+            display: flex;
+            flex-grow: 1; /* Main content takes available vertical space */
+            overflow: hidden; /* Important: children will handle their own scroll */
+        }
+
+        #left-sidebar {
+            flex: 0 0 38%; /* Width of the left sidebar */
+            position: sticky;
+            top: 0; /* Stick to the top of the main container */
+            height: 100%; /* Take full height of the main container */
+            overflow: hidden; /* Sidebar itself should not scroll */
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            border-right: 1px solid #ddd;
+            background-color: #f9f9f9; /* Slight background to differentiate */
+        }
+
+        #right-content-area {
+            flex: 1; /* Takes remaining width */
+            overflow-y: auto; /* This column scrolls */
+            height: 100%; /* Take full height of the main container */
+            padding: 1rem;
+        }
+
+        /* Styling for sections within the columns */
+        #left-sidebar section, #right-content-area section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc; /* Unified border */
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Specifics for sections within left-sidebar */
+        #credentials-config {
+            flex-shrink: 0; /* Prevent credentials section from shrinking */
+            /* Default block behavior, margin-bottom from rule above */
+        }
+
+        #results {
+            /* display: flex; flex-direction: column; -- Removed */
+            flex-grow: 1; /* Takes available space in left-sidebar after credentials */
+            overflow-y: auto; /* This section will scroll if its content overflows */
+            min-height: 0; /* Allows this flex item to shrink if necessary */
+        }
+
+        #results > h2 {
+            /* flex-shrink: 0; -- Removed */
+            /* Standard block element, will scroll with section#results */
+        }
+
+        #results-output {
+            background-color: #e9e9e9;
+            border: 1px solid #ccc;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+            margin-top: 10px;
+            /* flex-grow: 1; -- Removed */
+            /* overflow-y: auto; -- Removed, parent section#results handles scrolling */
+            min-height: 150px; /* Retain for minimum visibility when logs are empty */
+            /* min-height: 0; -- Removed, using specific min-height above */
+        }
+
+        /* Remove styles for old #sticky-top-panel and its direct children */
+        #sticky-top-panel, #sticky-top-panel > section {
+            /* These selectors are no longer relevant, but no harm in explicitly resetting if needed */
+            /* However, it's cleaner if they are just removed from the stylesheet */
+        }
+        /* Resetting styles that might have been on #credentials-config and #results from Plan 9 */
+        #credentials-config, #results {
+            position: static; /* Remove any sticky or flex item properties from previous plan */
+            height: auto;
+            flex: none;
+            margin-right: 0; /* Reset margin if it was for side-by-side */
+            border-bottom: 1px solid #ccc; /* Restore default section border if it was removed */
+        }
+         /* Ensure #credentials-config has its bottom margin like other sections in the sidebar */
+        #credentials-config {
+             margin-bottom: 20px;
+        }
+
+
+        section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ddd;
+            margin: 30px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: calc(100% - 22px); /* Account for padding and border */
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #5cb85c;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        #clear-api-config {
+            background-color: #d9534f;
+        }
+        #clear-api-config:hover {
+            background-color: #c9302c;
+        }
+
+        #results-output {
+            background-color: #e9e9e9;
+            border: 1px solid #ccc;
+            min-height: 100px;
+            padding: 10px;
+            white-space: pre-wrap; /* Preserves whitespace and newlines */
+            word-wrap: break-word; /* Breaks long words to prevent overflow */
+            font-family: "Courier New", Courier, monospace;
+            margin-top: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 30px; /* This might be less relevant if main is flex-grow */
+            flex-shrink: 0; /* Prevent footer from shrinking */
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            main {
+                margin: 10px;
+                padding: 0.5rem;
+            }
+            input[type="text"],
+            input[type="file"],
+            button {
+                width: 100%;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>SSC Instance Manager</h1>
+    </header>
+
+    <main>
+        <div id="left-sidebar">
+            <section id="credentials-config">
+                <h2>Host Credentials & API Endpoint</h2>
+                <div>
+                    <label for="credentials-file-input">Load Credentials File:</label>
+                    <input type="file" id="credentials-file-input">
+                    <button id="load-credentials-button">Load Credentials File</button>
+                </div>
+                <div>
+                    <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
+                    <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
+                </div>
+            </section>
+            <section id="results">
+                <h2>Results / Logs</h2>
+                <div id="results-output" style="border: 1px solid #ccc; min-height: 100px; padding: 10px; white-space: pre-wrap;">
+                    Waiting for action...
+                </div>
+            </section>
+        </div>
+
+        <div id="right-content-area">
+            <section id="deploy-instance">
+                <h2>Deploy Instance</h2>
+                <div>
+                    <label for="deploy-config-file">Configuration File (JSON):</label>
+                    <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
+                </div>
+                <div>
+                    <label for="deploy-image-file">Image File:</label>
+                    <input type="file" id="deploy-image-file" name="deploy-image-file">
+                </div>
+                <button id="deploy-button">Deploy Instance</button>
+            </section>
+
+            <hr>
+
+            <section id="export-config">
+                <h2>Export Instance Configuration</h2>
+                <button id="export-config-button">Export Configuration</button>
+            </section>
+
+            <hr>
+
+            <section id="update-config">
+                <h2>Update Instance Configuration (Delta)</h2>
+                <div>
+                    <label for="update-config-file">New Configuration File (JSON):</label>
+                    <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
+                </div>
+                <button id="update-config-button">Update Configuration</button>
+            </section>
+
+            <hr>
+
+            <section id="update-instance">
+                <h2>Update (Upgrade) Instance</h2>
+                <div>
+                    <label for="update-image-file">New Image File:</label>
+                    <input type="file" id="update-image-file" name="update-image-file">
+                </div>
+                <!-- Future: Add options for version, etc. if needed -->
+                <button id="update-instance-button">Update Instance</button>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <p>SSC Management Tool</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Credential and API config elements
+            const credentialsFileInput = document.getElementById('credentials-file-input');
+            const loadCredentialsButton = document.getElementById('load-credentials-button');
+            const displayHostIp = document.getElementById('display-host-ip');
+            const displayHostUser = document.getElementById('display-host-user');
+            // const displayApiBaseUrl = document.getElementById('display-api-base-url'); // Removed
+
+            const resultsOutput = document.getElementById('results-output');
+
+            // Action elements
+            const deployButton = document.getElementById('deploy-button');
+            const deployConfigFileInput = document.getElementById('deploy-config-file');
+            const deployImageFileInput = document.getElementById('deploy-image-file'); // Added image file input
+
+            const exportConfigButton = document.getElementById('export-config-button');
+            // const exportInstanceIdInput = document.getElementById('export-instance-id'); // Removed
+
+            const updateConfigButton = document.getElementById('update-config-button');
+            // const updateConfigInstanceIdInput = document.getElementById('update-config-instance-id'); // Removed
+            const updateConfigFileInput = document.getElementById('update-config-file');
+
+            const updateInstanceButton = document.getElementById('update-instance-button');
+            const updateImageFileInput = document.getElementById('update-image-file'); // Added
+            // const updateInstanceIdInput = document.getElementById('update-instance-id'); // Removed
+
+            const SSC_STORAGE_KEY = 'sscPersistentData'; // General key for all SSC related data
+
+            // --- Logging ---
+            function logMessage(message) {
+                console.log(message);
+                resultsOutput.textContent = `[INFO] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+            }
+
+            function logError(error) {
+                console.error(error);
+                resultsOutput.textContent = `[ERROR] ${new Date().toLocaleTimeString()}: ${error}\n` + resultsOutput.textContent;
+            }
+
+            function logSuccess(message) {
+                console.log(message);
+                resultsOutput.textContent = `[SUCCESS] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
+            }
+
+            // --- Credential Management & Loading ---
+            function loadCredentialsFromStorage() {
+                const storedData = localStorage.getItem(SSC_STORAGE_KEY);
+                if (storedData) {
+                    try {
+                        const sscData = JSON.parse(storedData);
+                        if (sscData.credentials && sscData.credentials.ip && sscData.credentials.user) {
+                            displayHostIp.textContent = sscData.credentials.ip;
+                            displayHostUser.textContent = sscData.credentials.user;
+                            // Password is not displayed for security
+                            // displayApiBaseUrl.textContent = sscData.apiBaseUrl || 'Not fully configured'; // Removed
+                            logMessage(`Credentials and API base URL loaded from local storage. IP: ${sscData.credentials.ip}, User: ${sscData.credentials.user}, BaseURL: ${sscData.apiBaseUrl}`); // Log base URL
+                            return sscData;
+                        }
+                    } catch (e) {
+                        logError("Error parsing stored credentials: " + e.message);
+                        localStorage.removeItem(SSC_STORAGE_KEY); // Clear corrupted data
+                    }
+                }
+                displayHostIp.textContent = 'Not set';
+                displayHostUser.textContent = 'Not set';
+                // displayApiBaseUrl.textContent = 'Not set'; // Removed
+                logMessage('No valid credentials found in local storage.');
+                return null;
+            }
+
+            // Centralized API Call Function
+            async function makeApiCall(path, method, body = null) {
+                const storedData = localStorage.getItem(SSC_STORAGE_KEY);
+                if (!storedData) {
+                    logError('API call failed: Credentials not found in local storage.');
+                    throw new Error('Credentials not found');
+                }
+
+                let sscData;
+                try {
+                    sscData = JSON.parse(storedData);
+                } catch (e) {
+                    logError('API call failed: Could not parse stored credentials.');
+                    throw new Error('Invalid stored credentials');
+                }
+
+                if (!sscData.credentials || !sscData.credentials.user || !sscData.credentials.password || !sscData.apiBaseUrl) {
+                    logError('API call failed: Incomplete credentials or API base URL.');
+                    throw new Error('Incomplete credentials');
+                }
+
+                const { user, password } = sscData.credentials;
+                const { apiBaseUrl } = sscData;
+                const fullUrl = apiBaseUrl + path;
+
+                const fetchOptions = {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(user + ':' + password)
+                    }
+                };
+
+                if (body instanceof FormData) {
+                    fetchOptions.body = body;
+                    // Do NOT set Content-Type for FormData, browser does it with boundary
+                    logMessage(`API Call: ${method} ${fullUrl} with FormData`);
+                } else if (body) {
+                    fetchOptions.body = (typeof body === 'string' ? body : JSON.stringify(body));
+                    fetchOptions.headers['Content-Type'] = 'application/json';
+                    logMessage(`API Call: ${method} ${fullUrl}`);
+                    logMessage(`With JSON body (first 100 chars): ${fetchOptions.body.substring(0,100)}...`);
+                } else {
+                    logMessage(`API Call: ${method} ${fullUrl}`);
+                }
+
+
+                try {
+                    const response = await fetch(fullUrl, fetchOptions);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        logError(`API Error ${response.status}: ${errorText}`);
+                        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                    }
+
+                    // Try to parse JSON if content type suggests it, otherwise return text
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const jsonData = await response.json();
+                        logSuccess(`API Success: ${method} ${fullUrl} responded with JSON.`);
+                        return jsonData;
+                    } else {
+                        const textData = await response.text();
+                        logSuccess(`API Success: ${method} ${fullUrl} responded with text.`);
+                        return textData;
+                    }
+                } catch (error) {
+                    let detailedErrorMessage = `API Call Exception: ${error.message}`;
+                    if (error instanceof TypeError && error.message.toLowerCase().includes('failed to fetch')) {
+                        detailedErrorMessage += "\n\n[TROUBLESHOOTING 'Failed to fetch']:" +
+                            "\n- This often indicates a CORS (Cross-Origin Resource Sharing) issue or a network problem." +
+                            "\n- Open your browser's Developer Console (F12) and look for more specific errors, especially regarding 'Access-Control-Allow-Origin' headers." +
+                            "\n- Ensure the server at the target IP is configured to allow requests from this page's origin (which might be 'null' or 'file://' if running locally)." +
+                            "\n- Verify network connectivity to the server and that the server is running and accessible.";
+                    }
+                    logError(detailedErrorMessage);
+                    throw error; // Re-throw for the caller to handle
+                }
+            }
+
+
+            async function handleLoadCredentialsFile() {
+                if (!credentialsFileInput.files || credentialsFileInput.files.length === 0) {
+                    logError('No credentials file selected.');
+                    return;
+                }
+                const file = credentialsFileInput.files[0];
+                logMessage(`Reading credentials from ${file.name}...`);
+
+                try {
+                    const fileContent = await readFileContent(credentialsFileInput);
+                    const lines = fileContent.split('\n');
+                    const credentials = {};
+                    const requiredKeys = ['LPAR_IP', 'LPAR_USER', 'LPAR_PASSWORD'];
+
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (line.startsWith('#') || line === '') return; // Skip comments and empty lines
+
+                        let parts = line.split('=');
+                        if (parts[0].startsWith('export ')) {
+                            parts[0] = parts[0].substring('export '.length);
+                        }
+                        const key = parts[0].trim();
+                        const value = parts.slice(1).join('=').trim().replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+
+                        if (requiredKeys.includes(key)) {
+                            credentials[key] = value;
+                        }
+                    });
+
+                    if (!credentials.LPAR_IP || !credentials.LPAR_USER || !credentials.LPAR_PASSWORD) {
+                        throw new Error(`File must contain LPAR_IP, LPAR_USER, and LPAR_PASSWORD. Found: ${Object.keys(credentials).join(', ')}`);
+                    }
+
+                    const apiBaseUrl = `https://${credentials.LPAR_IP}/ssc/api`; // Changed to HTTPS
+
+                    const sscDataToStore = {
+                        credentials: {
+                            ip: credentials.LPAR_IP,
+                            user: credentials.LPAR_USER,
+                            password: credentials.LPAR_PASSWORD // Stored in JS memory, then local storage
+                        },
+                        apiBaseUrl: apiBaseUrl
+                    };
+
+                    localStorage.setItem(SSC_STORAGE_KEY, JSON.stringify(sscDataToStore));
+                    logSuccess('Credentials loaded and saved to local storage.');
+                    loadCredentialsFromStorage(); // Refresh UI
+
+                } catch (error) {
+                    logError(`Error loading credentials: ${error.message}`);
+                    displayHostIp.textContent = 'Error';
+                    displayHostUser.textContent = 'Error';
+                    // displayApiBaseUrl.textContent = 'Error'; // Removed
+                }
+            }
+
+
+            // --- Generic File Reader ---
+            async function readFileContent(fileInput) {
+                return new Promise((resolve, reject) => {
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        reject('No file selected.');
+                        return;
+                    }
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        resolve(event.target.result);
+                    };
+                    reader.onerror = (error) => {
+                        reject('Error reading file: ' + error);
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            async function deployInstance() {
+                logMessage('Attempting to deploy instance with configuration and image...');
+
+                if (!deployConfigFileInput.files || deployConfigFileInput.files.length === 0) {
+                    logError('Please select a configuration file (JSON) to deploy.');
+                    return;
+                }
+                if (!deployImageFileInput.files || deployImageFileInput.files.length === 0) {
+                    logError('Please select an image file to deploy.');
+                    return;
+                }
+
+                const configFile = deployConfigFileInput.files[0];
+                const imageFile = deployImageFileInput.files[0];
+
+                try {
+                    const configFileContent = await readFileContent(deployConfigFileInput);
+
+                    const formData = new FormData();
+                    formData.append('config', configFileContent); // Assuming server expects config as a string field
+                    // Alternatively, if server expects config file as a file:
+                    // formData.append('configFile', configFile, configFile.name);
+                    formData.append('image', imageFile, imageFile.name); // Send image file as a file
+
+                    logMessage(`Deploying with Config: ${configFile.name}, Image: ${imageFile.name}`);
+
+                    // Assuming POST to /config (or /deploy) with FormData
+                    // The makeApiCall function will need to handle FormData correctly (next step)
+                    await makeApiCall('/config', 'POST', formData);
+                    logSuccess('Instance deployment initiated successfully with configuration and image.');
+
+                } catch (error) {
+                    logError(`Deploy instance failed: ${error.message}`);
+                }
+            }
+
+            async function exportConfig() {
+                logMessage('Attempting to export instance configuration...');
+                try {
+                    // Assuming GET from /config returns the current instance's configuration
+                    const configData = await makeApiCall('/config', 'GET');
+
+                    let filename = "config.json"; // Default filename
+                    const sscData = JSON.parse(localStorage.getItem(SSC_STORAGE_KEY));
+                    if (sscData && sscData.credentials && sscData.credentials.ip) {
+                        filename = `config-${sscData.credentials.ip.replace(/\./g, '_')}.json`;
+                    }
+
+                    const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
+
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    logSuccess(`Instance configuration downloaded as ${filename}.`);
+
+                } catch (error) {
+                    logError(`Export instance configuration failed. ${error.message}`);
+                }
+            }
+
+            async function updateConfig() {
+                logMessage('Attempting to update instance configuration...');
+                if (!updateConfigFileInput.files || updateConfigFileInput.files.length === 0) {
+                    logError('Please select a new configuration file for update.');
+                    return;
+                }
+
+                try {
+                    const configFileContent = await readFileContent(updateConfigFileInput);
+                    // Assuming PUT to /config with the new configuration content
+                    await makeApiCall('/config', 'PUT', configFileContent);
+                    logSuccess('Instance configuration updated successfully.');
+                } catch (error) {
+                    logError(`Update instance configuration failed. ${error.message}`);
+                }
+            }
+
+            async function updateInstance() {
+                logMessage('Attempting to update (upgrade) instance...');
+
+                if (!updateImageFileInput.files || updateImageFileInput.files.length === 0) {
+                    logError('An image file is mandatory for updating the instance. Please select an image file.');
+                    return;
+                }
+
+                const imageFile = updateImageFileInput.files[0];
+                const formData = new FormData();
+                formData.append('image', imageFile, imageFile.name);
+
+                try {
+                    logMessage(`Updating instance with new image file: ${imageFile.name}`);
+                    await makeApiCall('/update', 'POST', formData);
+                    logSuccess('Instance update/upgrade initiated successfully with new image.');
+                } catch (error) {
+                    logError(`Update instance failed: ${error.message}`);
+                }
+            }
+
+
+            // --- Event Listeners ---
+            loadCredentialsButton.addEventListener('click', handleLoadCredentialsFile);
+
+            deployButton.addEventListener('click', deployInstance);
+            exportConfigButton.addEventListener('click', exportConfig);
+            updateConfigButton.addEventListener('click', updateConfig);
+            updateInstanceButton.addEventListener('click', updateInstance);
+
+            // --- Initial Load ---
+            loadCredentialsFromStorage(); // Load any saved credentials on page load
+            logMessage('SSC Instance Manager Initialized. Load a credentials file to begin.');
+        });
+    </script>
+</body>
+</html>
