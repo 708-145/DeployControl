@@ -349,7 +349,15 @@
                         return textData;
                     }
                 } catch (error) {
-                    logError(`API Call Exception: ${error.message}`);
+                    let detailedErrorMessage = `API Call Exception: ${error.message}`;
+                    if (error instanceof TypeError && error.message.toLowerCase().includes('failed to fetch')) {
+                        detailedErrorMessage += "\n\n[TROUBLESHOOTING 'Failed to fetch']:" +
+                            "\n- This often indicates a CORS (Cross-Origin Resource Sharing) issue or a network problem." +
+                            "\n- Open your browser's Developer Console (F12) and look for more specific errors, especially regarding 'Access-Control-Allow-Origin' headers." +
+                            "\n- Ensure the server at the target IP is configured to allow requests from this page's origin (which might be 'null' or 'file://' if running locally)." +
+                            "\n- Verify network connectivity to the server and that the server is running and accessible.";
+                    }
+                    logError(detailedErrorMessage);
                     throw error; // Re-throw for the caller to handle
                 }
             }
