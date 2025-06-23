@@ -41,6 +41,15 @@
             border-radius: 5px;
         }
 
+        #credentials-config { /* Style for sticky behavior */
+            position: sticky;
+            top: 0;
+            background-color: #fff; /* Match main background for opacity */
+            z-index: 100;
+            border-bottom: 2px solid #333; /* Add a separator when sticky */
+            margin-bottom: 20px; /* Ensure space below when not sticky, might be redundant with section default */
+        }
+
         section h2 {
             margin-top: 0;
             color: #333;
