@@ -220,9 +220,9 @@
     <main>
         <div id="left-sidebar">
             <section id="credentials-config">
-                <h2>Host Credentials & API Endpoint</h2>
+                <h2>Instance Credentials</h2>
                 <div style="padding: 10px; border: 1px solid #ffcc00; background-color: #fff9e6; margin-bottom: 15px; border-radius: 4px;">
-                    <strong>Important Note on CORS:</strong> Direct API calls from this web page (when opened as a local file or from a different domain) to the SSC/LPAR server will likely be blocked by your browser's Same-Origin Policy (SOP). For these calls to succeed, the SSC/LPAR server at the target IP address must be configured to send appropriate CORS (Cross-Origin Resource Sharing) headers, such as `Access-Control-Allow-Origin`. Without this server-side configuration, you will typically see "Failed to fetch" errors in the logs below, or errors related to CORS in your browser's developer console (F12).
+                    <strong>Important Note on CORS:</strong> Direct API calls from this web page will likely be blocked by your browser's Same-Origin Policy (SOP). For these calls to succeed, the SSC/LPAR server at the target IP address must be configured to send appropriate CORS (Cross-Origin Resource Sharing) headers, such as `Access-Control-Allow-Origin`.
                 </div>
                 <div>
                     <label for="credentials-file-input">Load Credentials File:</label>
