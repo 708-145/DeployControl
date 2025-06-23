@@ -134,15 +134,18 @@
     </header>
 
     <main>
-        <section id="config-management">
-            <h2>SSC API Configuration</h2>
+        <section id="credentials-config">
+            <h2>Host Credentials & API Endpoint</h2>
             <div>
-                <label for="api-endpoint">SSC API Base URL:</label>
-                <input type="text" id="api-endpoint" name="api-endpoint" style="width: 300px;">
-                <button id="save-api-config">Save Endpoint</button>
-                <button id="clear-api-config">Clear Endpoint</button>
+                <label for="credentials-file-input">Load Credentials File (.sh, .env, .txt):</label>
+                <input type="file" id="credentials-file-input" accept=".sh,.env,.txt">
+                <button id="load-credentials-button">Load Credentials File</button>
             </div>
-            <p>Current Endpoint: <span id="current-api-endpoint">Not set</span></p>
+            <div>
+                <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
+                <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
+                <p>SSC API Base URL: <strong id="display-api-base-url">Not set</strong></p>
+            </div>
         </section>
 
         <hr>
@@ -214,12 +217,16 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const apiEndpointInput = document.getElementById('api-endpoint');
-            const saveApiConfigButton = document.getElementById('save-api-config');
-            const clearApiConfigButton = document.getElementById('clear-api-config');
-            const currentApiEndpointSpan = document.getElementById('current-api-endpoint');
+            // Credential and API config elements
+            const credentialsFileInput = document.getElementById('credentials-file-input');
+            const loadCredentialsButton = document.getElementById('load-credentials-button');
+            const displayHostIp = document.getElementById('display-host-ip');
+            const displayHostUser = document.getElementById('display-host-user');
+            const displayApiBaseUrl = document.getElementById('display-api-base-url');
+
             const resultsOutput = document.getElementById('results-output');
 
+            // Action elements
             const deployButton = document.getElementById('deploy-button');
             const deployConfigFileInput = document.getElementById('deploy-config-file');
             const deployInstanceIdInput = document.getElementById('deploy-instance-id');
@@ -234,38 +241,7 @@
             const updateInstanceButton = document.getElementById('update-instance-button');
             const updateInstanceIdInput = document.getElementById('update-instance-id');
 
-            const SSC_API_ENDPOINT_KEY = 'sscApiEndpoint';
-
-            // --- Configuration Management ---
-            function loadApiEndpoint() {
-                const endpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
-                if (endpoint) {
-                    apiEndpointInput.value = endpoint;
-                    currentApiEndpointSpan.textContent = endpoint;
-                    logMessage(`Loaded API endpoint from local storage: ${endpoint}`);
-                } else {
-                    currentApiEndpointSpan.textContent = 'Not set';
-                    logMessage('No API endpoint found in local storage.');
-                }
-            }
-
-            function saveApiEndpoint() {
-                const endpoint = apiEndpointInput.value.trim();
-                if (endpoint) {
-                    localStorage.setItem(SSC_API_ENDPOINT_KEY, endpoint);
-                    currentApiEndpointSpan.textContent = endpoint;
-                    logMessage(`API endpoint saved: ${endpoint}`);
-                } else {
-                    logError('API endpoint cannot be empty.');
-                }
-            }
-
-            function clearApiEndpoint() {
-                localStorage.removeItem(SSC_API_ENDPOINT_KEY);
-                apiEndpointInput.value = '';
-                currentApiEndpointSpan.textContent = 'Not set';
-                logMessage('API endpoint cleared from local storage.');
-            }
+            const SSC_STORAGE_KEY = 'sscPersistentData'; // General key for all SSC related data
 
             // --- Logging ---
             function logMessage(message) {
@@ -283,8 +259,159 @@
                 resultsOutput.textContent = `[SUCCESS] ${new Date().toLocaleTimeString()}: ${message}\n` + resultsOutput.textContent;
             }
 
-            // --- API Call Placeholders ---
-            // Simulates reading a file and returning its content as text
+            // --- Credential Management & Loading ---
+            function loadCredentialsFromStorage() {
+                const storedData = localStorage.getItem(SSC_STORAGE_KEY);
+                if (storedData) {
+                    try {
+                        const sscData = JSON.parse(storedData);
+                        if (sscData.credentials && sscData.credentials.ip && sscData.credentials.user) {
+                            displayHostIp.textContent = sscData.credentials.ip;
+                            displayHostUser.textContent = sscData.credentials.user;
+                            // Password is not displayed for security
+                            displayApiBaseUrl.textContent = sscData.apiBaseUrl || 'Not fully configured';
+                            logMessage(`Credentials and API base URL loaded from local storage. IP: ${sscData.credentials.ip}, User: ${sscData.credentials.user}`);
+                            return sscData;
+                        }
+                    } catch (e) {
+                        logError("Error parsing stored credentials: " + e.message);
+                        localStorage.removeItem(SSC_STORAGE_KEY); // Clear corrupted data
+                    }
+                }
+                displayHostIp.textContent = 'Not set';
+                displayHostUser.textContent = 'Not set';
+                displayApiBaseUrl.textContent = 'Not set';
+                logMessage('No valid credentials found in local storage.');
+                return null;
+            }
+
+            // Centralized API Call Function
+            async function makeApiCall(path, method, body = null) {
+                const storedData = localStorage.getItem(SSC_STORAGE_KEY);
+                if (!storedData) {
+                    logError('API call failed: Credentials not found in local storage.');
+                    throw new Error('Credentials not found');
+                }
+
+                let sscData;
+                try {
+                    sscData = JSON.parse(storedData);
+                } catch (e) {
+                    logError('API call failed: Could not parse stored credentials.');
+                    throw new Error('Invalid stored credentials');
+                }
+
+                if (!sscData.credentials || !sscData.credentials.user || !sscData.credentials.password || !sscData.apiBaseUrl) {
+                    logError('API call failed: Incomplete credentials or API base URL.');
+                    throw new Error('Incomplete credentials');
+                }
+
+                const { user, password } = sscData.credentials;
+                const { apiBaseUrl } = sscData;
+                const fullUrl = apiBaseUrl + path;
+
+                const headers = {
+                    'Authorization': 'Basic ' + btoa(user + ':' + password)
+                };
+                if (body) {
+                    headers['Content-Type'] = 'application/json';
+                }
+
+                logMessage(`API Call: ${method} ${fullUrl}`);
+                if (body) {
+                    logMessage(`With body (first 100 chars): ${typeof body === 'string' ? body.substring(0,100) : JSON.stringify(body).substring(0,100)}...`);
+                }
+
+                try {
+                    const response = await fetch(fullUrl, {
+                        method: method,
+                        headers: headers,
+                        body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : null
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        logError(`API Error ${response.status}: ${errorText}`);
+                        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                    }
+
+                    // Try to parse JSON if content type suggests it, otherwise return text
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const jsonData = await response.json();
+                        logSuccess(`API Success: ${method} ${fullUrl} responded with JSON.`);
+                        return jsonData;
+                    } else {
+                        const textData = await response.text();
+                        logSuccess(`API Success: ${method} ${fullUrl} responded with text.`);
+                        return textData;
+                    }
+                } catch (error) {
+                    logError(`API Call Exception: ${error.message}`);
+                    throw error; // Re-throw for the caller to handle
+                }
+            }
+
+
+            async function handleLoadCredentialsFile() {
+                if (!credentialsFileInput.files || credentialsFileInput.files.length === 0) {
+                    logError('No credentials file selected.');
+                    return;
+                }
+                const file = credentialsFileInput.files[0];
+                logMessage(`Reading credentials from ${file.name}...`);
+
+                try {
+                    const fileContent = await readFileContent(credentialsFileInput);
+                    const lines = fileContent.split('\n');
+                    const credentials = {};
+                    const requiredKeys = ['LPAR_IP', 'LPAR_USER', 'LPAR_PASSWORD'];
+
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (line.startsWith('#') || line === '') return; // Skip comments and empty lines
+
+                        let parts = line.split('=');
+                        if (parts[0].startsWith('export ')) {
+                            parts[0] = parts[0].substring('export '.length);
+                        }
+                        const key = parts[0].trim();
+                        const value = parts.slice(1).join('=').trim().replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+
+                        if (requiredKeys.includes(key)) {
+                            credentials[key] = value;
+                        }
+                    });
+
+                    if (!credentials.LPAR_IP || !credentials.LPAR_USER || !credentials.LPAR_PASSWORD) {
+                        throw new Error(`File must contain LPAR_IP, LPAR_USER, and LPAR_PASSWORD. Found: ${Object.keys(credentials).join(', ')}`);
+                    }
+
+                    const apiBaseUrl = `http://${credentials.LPAR_IP}/ssc/api`; // Placeholder structure
+
+                    const sscDataToStore = {
+                        credentials: {
+                            ip: credentials.LPAR_IP,
+                            user: credentials.LPAR_USER,
+                            password: credentials.LPAR_PASSWORD // Stored in JS memory, then local storage
+                        },
+                        apiBaseUrl: apiBaseUrl
+                    };
+
+                    localStorage.setItem(SSC_STORAGE_KEY, JSON.stringify(sscDataToStore));
+                    logSuccess('Credentials loaded and saved to local storage.');
+                    loadCredentialsFromStorage(); // Refresh UI
+
+                } catch (error) {
+                    logError(`Error loading credentials: ${error.message}`);
+                    displayHostIp.textContent = 'Error';
+                    displayHostUser.textContent = 'Error';
+                    displayApiBaseUrl.textContent = 'Error';
+                }
+            }
+
+
+            // --- Generic File Reader ---
             async function readFileContent(fileInput) {
                 return new Promise((resolve, reject) => {
                     if (!fileInput.files || fileInput.files.length === 0) {
@@ -305,140 +432,96 @@
 
             async function deployInstance() {
                 logMessage('Attempting to deploy instance...');
-                const instanceId = deployInstanceIdInput.value.trim();
-                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
-
-                if (!apiEndpoint) {
-                    logError('API Endpoint not set. Please configure it first.');
-                    return;
-                }
-                if (!deployConfigFileInput.files || deployConfigFileInput.files.length === 0) {
-                    logError('Please select a configuration file for deployment.');
-                    return;
-                }
-
                 try {
-                    const configFileContent = await readFileContent(deployConfigFileInput);
-                    // In a real scenario, you'd parse JSON: const configData = JSON.parse(configFileContent);
-                    logMessage(`Instance ID: ${instanceId || '(auto-generated by SSC)'}`);
-                    logMessage(`Configuration file selected: ${deployConfigFileInput.files[0].name}`);
-                    // logMessage(`Config content (first 100 chars): ${configFileContent.substring(0,100)}...`);
-
-                    // Placeholder for actual API call
-                    // const url = `${apiEndpoint}/deploy`; // Adjust endpoint as needed
-                    // const method = 'POST';
-                    // const body = { instanceId, configuration: configData }; // Or raw content
-                    // const response = await fetch(url, { method, body: JSON.stringify(body), headers: {'Content-Type': 'application/json'} });
-                    // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    // const result = await response.json();
-                    // logSuccess(`Deployment successful: ${JSON.stringify(result)}`);
-
-                    logSuccess(`Simulated Deploy: Would POST to ${apiEndpoint}/deploy with instance ID '${instanceId}' and config from '${deployConfigFileInput.files[0].name}'.`);
+                    // This is a placeholder. Actual deploy would need an instance config file AND an image file.
+                    // const sscData = loadCredentialsFromStorage(); // makeApiCall does this
+                    // if (!sscData || !sscData.apiBaseUrl) {
+                    //     logError('Credentials or API Base URL not configured. Please load a credentials file.');
+                    //     return;
+                    // }
+                    // For now, just showing how makeApiCall might be invoked.
+                    // await makeApiCall('/instances', 'POST', { someDeployConfig: 'data' });
+                    logMessage('Deploy Instance: Full implementation pending image file selector and specific deploy config structure.');
+                    logSuccess('Simulated Deploy: API call structure is ready.');
                 } catch (error) {
-                    logError(`Deployment failed: ${error.message}`);
+                    logError(`Deploy instance failed: ${error.message}`);
                 }
             }
 
             async function exportConfig() {
                 logMessage('Attempting to export configuration...');
                 const instanceId = exportInstanceIdInput.value.trim();
-                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
-
-                if (!apiEndpoint) {
-                    logError('API Endpoint not set. Please configure it first.');
-                    return;
-                }
                 if (!instanceId) {
                     logError('Instance ID is required for export.');
                     return;
                 }
+                try {
+                    // Example: GET /ssc/api/instances/{instanceId}/config
+                    const configData = await makeApiCall(`/instances/${instanceId}/config`, 'GET');
 
-                // Placeholder for actual API call
-                // const url = `${apiEndpoint}/instances/${instanceId}/config`; // Adjust endpoint
-                // const response = await fetch(url);
-                // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                // const configData = await response.json(); // or .text() if it's not JSON
-                // const filename = `config-${instanceId}.json`;
-                // const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
-                // const link = document.createElement('a');
-                // link.href = URL.createObjectURL(blob);
-                // link.download = filename;
-                // document.body.appendChild(link);
-                // link.click();
-                // document.body.removeChild(link);
-                // URL.revokeObjectURL(link.href);
-                // logSuccess(`Configuration for instance '${instanceId}' exported as ${filename}.`);
+                    const filename = `config-${instanceId}.json`;
+                    const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
 
-                logSuccess(`Simulated Export: Would GET from ${apiEndpoint}/instances/${instanceId}/config. And offer download.`);
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    logSuccess(`Configuration for instance '${instanceId}' downloaded as ${filename}.`);
+
+                } catch (error) {
+                    // makeApiCall already logs errors, but we can add more context here if needed
+                    logError(`Export configuration failed for instance '${instanceId}'. ${error.message}`);
+                }
             }
 
             async function updateConfig() {
                 logMessage('Attempting to update configuration...');
                 const instanceId = updateConfigInstanceIdInput.value.trim();
-                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
-
-                if (!apiEndpoint) {
-                    logError('API Endpoint not set. Please configure it first.');
-                    return;
-                }
                 if (!instanceId) {
                     logError('Instance ID is required for updating configuration.');
                     return;
                 }
                 if (!updateConfigFileInput.files || updateConfigFileInput.files.length === 0) {
-                    logError('Please select a new configuration file.');
+                    logError('Please select a new configuration file for update.');
                     return;
                 }
 
                 try {
                     const configFileContent = await readFileContent(updateConfigFileInput);
+                    // Validate if it's JSON before sending? For now, assuming it is.
                     // const configData = JSON.parse(configFileContent);
-                    logMessage(`Instance ID: ${instanceId}`);
-                    logMessage(`New configuration file selected: ${updateConfigFileInput.files[0].name}`);
 
-                    // Placeholder for actual API call
-                    // const url = `${apiEndpoint}/instances/${instanceId}/config`; // Adjust endpoint
-                    // const method = 'PUT'; // or PATCH
-                    // const body = configData;
-                    // const response = await fetch(url, { method, body: JSON.stringify(body), headers: {'Content-Type': 'application/json'} });
-                    // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    // const result = await response.json();
-                    // logSuccess(`Configuration update successful for instance '${instanceId}': ${JSON.stringify(result)}`);
-
-                    logSuccess(`Simulated Update Config: Would PUT/PATCH to ${apiEndpoint}/instances/${instanceId}/config with content from '${updateConfigFileInput.files[0].name}'.`);
+                    // Example: PUT /ssc/api/instances/{instanceId}/config
+                    await makeApiCall(`/instances/${instanceId}/config`, 'PUT', configFileContent); // Send raw string
+                    logSuccess(`Configuration successfully updated for instance '${instanceId}'.`);
                 } catch (error) {
-                    logError(`Configuration update failed: ${error.message}`);
+                    logError(`Update configuration failed for instance '${instanceId}'. ${error.message}`);
                 }
             }
 
             async function updateInstance() {
                 logMessage('Attempting to update (upgrade) instance...');
-                const instanceId = updateInstanceIdInput.value.trim();
-                const apiEndpoint = localStorage.getItem(SSC_API_ENDPOINT_KEY);
-
-                if (!apiEndpoint) {
-                    logError('API Endpoint not set. Please configure it first.');
-                    return;
+                 try {
+                    // Similar to deploy, this is a placeholder.
+                    // const instanceId = updateInstanceIdInput.value.trim();
+                    // if (!instanceId) {
+                    //    logError('Instance ID is required for update.');
+                    //    return;
+                    // }
+                    // await makeApiCall(`/instances/${instanceId}/update`, 'POST', { someUpdateParams: 'data' });
+                    logMessage('Update Instance: Full implementation pending image file selector and specific update parameters.');
+                    logSuccess('Simulated Update Instance: API call structure is ready.');
+                } catch (error) {
+                    logError(`Update instance failed: ${error.message}`);
                 }
-                if (!instanceId) {
-                    logError('Instance ID is required for update.');
-                    return;
-                }
-
-                // Placeholder for actual API call
-                // const url = `${apiEndpoint}/instances/${instanceId}/update`; // Adjust endpoint
-                // const method = 'POST'; // Or PUT, depending on API design
-                // const response = await fetch(url, { method });
-                // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                // const result = await response.json();
-                // logSuccess(`Instance update successful for '${instanceId}': ${JSON.stringify(result)}`);
-
-                logSuccess(`Simulated Update Instance: Would POST to ${apiEndpoint}/instances/${instanceId}/update.`);
             }
 
+
             // --- Event Listeners ---
-            saveApiConfigButton.addEventListener('click', saveApiEndpoint);
-            clearApiConfigButton.addEventListener('click', clearApiEndpoint);
+            loadCredentialsButton.addEventListener('click', handleLoadCredentialsFile);
 
             deployButton.addEventListener('click', deployInstance);
             exportConfigButton.addEventListener('click', exportConfig);
@@ -446,8 +529,8 @@
             updateInstanceButton.addEventListener('click', updateInstance);
 
             // --- Initial Load ---
-            loadApiEndpoint();
-            logMessage('SSC Instance Manager Initialized. Please set your API Endpoint.');
+            loadCredentialsFromStorage(); // Load any saved credentials on page load
+            logMessage('SSC Instance Manager Initialized. Load a credentials file to begin.');
         });
     </script>
 </body>
