@@ -39,16 +39,56 @@
             padding: 20px;
             border: 1px solid #ddd;
             border-radius: 5px;
+            /* General section margin, may need to override for flex children */
+            margin-bottom: 20px;
         }
 
-        #credentials-config { /* Style for sticky behavior */
+        #sticky-top-panel {
             position: sticky;
             top: 0;
-            background-color: #fff; /* Match main background for opacity */
+            background-color: #fff;
             z-index: 100;
-            border-bottom: 2px solid #333; /* Add a separator when sticky */
-            margin-bottom: 20px; /* Ensure space below when not sticky, might be redundant with section default */
+            display: flex;
+            align-items: stretch; /* Make children same height if possible */
+            padding: 10px 1rem; /* 10px top/bottom, 1rem left/right for content alignment */
+            border-bottom: 2px solid #ddd;
+            /* Ensure it spans full width of main container */
+            margin-left: -1rem; /* Counteract main's padding if main has padding: 1rem */
+            margin-right: -1rem; /* Counteract main's padding */
+            padding-left: 1rem; /* Restore padding for content within sticky panel */
+            padding-right: 1rem; /* Restore padding for content within sticky panel */
         }
+
+        #sticky-top-panel > section {
+            margin-bottom: 0; /* Remove bottom margin for sections within the sticky panel */
+            border: 1px solid #ccc; /* Maybe a lighter border for internal sections */
+        }
+
+        #credentials-config {
+            flex: 1 1 45%; /* Grow, shrink, basis 45% */
+            margin-right: 10px; /* Space between credentials and results */
+            /* Remove old sticky styles if any were directly on it */
+            position: static; /* Override previous sticky if it was directly on this element */
+            border-bottom: none; /* Handled by panel's border */
+        }
+
+        #results {
+            flex: 1 1 55%; /* Grow, shrink, basis 55% */
+        }
+
+        #results-output {
+            background-color: #e9e9e9; /* Keep existing style */
+            border: 1px solid #ccc; /* Keep existing style */
+            min-height: 100px; /* Keep existing style */
+            padding: 10px; /* Keep existing style */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+            margin-top: 10px; /* Keep existing style */
+            overflow-y: auto;
+            height: 250px; /* Fixed height for scrollability */
+        }
+
 
         section h2 {
             margin-top: 0;
@@ -143,21 +183,29 @@
     </header>
 
     <main>
-        <section id="credentials-config">
-            <h2>Host Credentials & API Endpoint</h2>
-            <div>
-                <label for="credentials-file-input">Load Credentials File:</label>
-                <input type="file" id="credentials-file-input"> {/* Removed accept attribute */}
-                <button id="load-credentials-button">Load Credentials File</button>
-            </div>
-            <div>
-                <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
-                <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
-                <p>SSC API Base URL: <strong id="display-api-base-url">Not set</strong></p>
-            </div>
-        </section>
+        <div id="sticky-top-panel">
+            <section id="credentials-config">
+                <h2>Host Credentials & API Endpoint</h2>
+                <div>
+                    <label for="credentials-file-input">Load Credentials File:</label>
+                    <input type="file" id="credentials-file-input"> {/* Removed accept attribute */}
+                    <button id="load-credentials-button">Load Credentials File</button>
+                </div>
+                <div>
+                    <p>Current Host IP: <strong id="display-host-ip">Not set</strong></p>
+                    <p>Current Host User: <strong id="display-host-user">Not set</strong></p>
+                    <p>SSC API Base URL: <strong id="display-api-base-url">Not set</strong></p>
+                </div>
+            </section>
+            <section id="results">
+                <h2>Results / Logs</h2>
+                <div id="results-output" style="border: 1px solid #ccc; min-height: 100px; padding: 10px; white-space: pre-wrap;">
+                    Waiting for action...
+                </div>
+            </section>
+        </div>
 
-        <hr>
+        <hr> {/* This HR might be visually between sticky panel and first action, or could be removed if border-bottom on sticky-panel is enough */}
 
         <section id="deploy-instance">
             <h2>Deploy New SSC Instance</h2>
@@ -197,15 +245,7 @@
             <!-- Future: Add options for version, etc. if needed -->
             <button id="update-instance-button">Update Instance</button>
         </section>
-
-        <hr>
-
-        <section id="results">
-            <h2>Results / Logs</h2>
-            <div id="results-output" style="border: 1px solid #ccc; min-height: 100px; padding: 10px; white-space: pre-wrap;">
-                Waiting for action...
-            </div>
-        </section>
+        {/* Removed section#results from here as it's moved to sticky-top-panel */}
     </main>
 
     <footer>
