@@ -79,14 +79,15 @@
         }
 
         #results {
-            display: flex;
-            flex-direction: column;
+            /* display: flex; flex-direction: column; -- Removed */
             flex-grow: 1; /* Takes available space in left-sidebar after credentials */
-            min-height: 0; /* Crucial for flex-grow to work correctly with overflow content */
+            overflow-y: auto; /* This section will scroll if its content overflows */
+            min-height: 0; /* Allows this flex item to shrink if necessary */
         }
 
         #results > h2 {
-            flex-shrink: 0; /* Prevent title from shrinking */
+            /* flex-shrink: 0; -- Removed */
+            /* Standard block element, will scroll with section#results */
         }
 
         #results-output {
@@ -97,9 +98,10 @@
             word-wrap: break-word;
             font-family: "Courier New", Courier, monospace;
             margin-top: 10px;
-            flex-grow: 1; /* Takes available height within #results section */
-            overflow-y: auto;
-            min-height: 150px; /* Ensure a usable log viewing area */
+            /* flex-grow: 1; -- Removed */
+            /* overflow-y: auto; -- Removed, parent section#results handles scrolling */
+            min-height: 150px; /* Retain for minimum visibility when logs are empty */
+            /* min-height: 0; -- Removed, using specific min-height above */
         }
 
         /* Remove styles for old #sticky-top-panel and its direct children */
@@ -239,7 +241,7 @@
 
         <div id="right-content-area">
             <section id="deploy-instance">
-                <h2>Deploy New SSC Instance</h2>
+                <h2>Deploy Instance</h2>
                 <div>
                     <label for="deploy-config-file">Configuration File (JSON):</label>
                     <input type="file" id="deploy-config-file" name="deploy-config-file" accept=".json">
@@ -261,7 +263,7 @@
             <hr>
 
             <section id="update-config">
-                <h2>Update Instance Configuration</h2>
+                <h2>Update Instance Configuration (Delta)</h2>
                 <div>
                     <label for="update-config-file">New Configuration File (JSON):</label>
                     <input type="file" id="update-config-file" name="update-config-file" accept=".json" required>
