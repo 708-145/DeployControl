@@ -290,7 +290,7 @@
             const loadCredentialsButton = document.getElementById('load-credentials-button');
             const displayHostIp = document.getElementById('display-host-ip');
             const displayHostUser = document.getElementById('display-host-user');
-            const displayApiBaseUrl = document.getElementById('display-api-base-url');
+            // const displayApiBaseUrl = document.getElementById('display-api-base-url'); // Removed
 
             const resultsOutput = document.getElementById('results-output');
 
@@ -337,8 +337,8 @@
                             displayHostIp.textContent = sscData.credentials.ip;
                             displayHostUser.textContent = sscData.credentials.user;
                             // Password is not displayed for security
-                            displayApiBaseUrl.textContent = sscData.apiBaseUrl || 'Not fully configured';
-                            logMessage(`Credentials and API base URL loaded from local storage. IP: ${sscData.credentials.ip}, User: ${sscData.credentials.user}`);
+                            // displayApiBaseUrl.textContent = sscData.apiBaseUrl || 'Not fully configured'; // Removed
+                            logMessage(`Credentials and API base URL loaded from local storage. IP: ${sscData.credentials.ip}, User: ${sscData.credentials.user}, BaseURL: ${sscData.apiBaseUrl}`); // Log base URL
                             return sscData;
                         }
                     } catch (e) {
@@ -348,7 +348,7 @@
                 }
                 displayHostIp.textContent = 'Not set';
                 displayHostUser.textContent = 'Not set';
-                displayApiBaseUrl.textContent = 'Not set';
+                // displayApiBaseUrl.textContent = 'Not set'; // Removed
                 logMessage('No valid credentials found in local storage.');
                 return null;
             }
@@ -487,7 +487,7 @@
                     logError(`Error loading credentials: ${error.message}`);
                     displayHostIp.textContent = 'Error';
                     displayHostUser.textContent = 'Error';
-                    displayApiBaseUrl.textContent = 'Error';
+                    // displayApiBaseUrl.textContent = 'Error'; // Removed
                 }
             }
 
